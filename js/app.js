@@ -42,6 +42,12 @@ async function startApp() {
     // 5. Configurar selector de vistas en el Shell de Localhost
     setupViewSwitcher();
 
+    // 5.1 Si viene con ?mode=mobile o en celular directo, activar modo standalone limpio
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('mode') === 'mobile' || urlParams.has('mariel')) {
+      document.body.classList.add('standalone-mobile');
+    }
+
     // 6. Configurar monitoreo de estado de sincronización en la barra superior
     setupSyncStatusPill();
 

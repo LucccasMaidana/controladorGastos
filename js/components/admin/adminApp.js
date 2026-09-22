@@ -18,18 +18,41 @@ import {
 import { configureSupabase, testSupabaseConnection } from '../../db/supabase.js';
 import { getConfig } from '../../db/indexedDb.js';
 
+const ADMIN_USER = 'Lucas';
+const ADMIN_PASS = 'JjunieBronce1';
+const AUTH_KEY = 'admin_session_auth';
+
+export function isUserAdminAuthenticated() {
+  return sessionStorage.getItem(AUTH_KEY) === 'true';
+}
+
+export function setAdminAuthenticated(val) {
+  if (val) {
+    sessionStorage.setItem(AUTH_KEY, 'true');
+  } else {
+    sessionStorage.removeItem(AUTH_KEY);
+  }
+}
+
 let activeFilter = 'PENDING'; // 'PENDING', 'PAID', 'ALL'
 let selectedBillForSettlement = null;
 
 export function initAdminApp(rootElement) {
   onAccountingChange(() => {
-    renderAdminApp(rootElement);
+    if (isUserAdminAuthenticated()) {
+      renderAdminApp(rootElement);
+    }
   });
 
   renderAdminApp(rootElement);
 }
 
 export async function renderAdminApp(rootElement) {
+  if (!isUserAdminAuthenticated()) {
+    renderAdminLogin(rootElement);
+    return;
+  }
+
   const summary = await getFinancialSummary();
   const bills = await getBillsList(activeFilter);
   const supabaseUrl = await getConfig('supabase_url', '');
@@ -53,6 +76,10 @@ export async function renderAdminApp(rootElement) {
           <button type="button" class="btn-primary" id="btn-open-create-bill">
             <span>＋</span>
             <span>Cargar Nueva Factura</span>
+          </button>
+          <button type="button" class="btn-secondary" id="btn-admin-logout" title="Cerrar sesión de Administrador" style="color: #fb7185;">
+            <span>🔒</span>
+            <span>Salir</span>
           </button>
         </div>
       </div>
@@ -208,14 +235,67 @@ export async function renderAdminApp(rootElement) {
     });
   });
 
-  // Eliminar Facturas
-  document.querySelectorAll('[data-delete-id]').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const billId = e.currentTarget.dataset.deleteId;
-      if (confirm('¿Estás seguro de que deseas eliminar este registro de factura?')) {
-        await deleteBill(billId);
-      }
-    });
+  // Cerrar sesión
+  document.getElementById('btn-admin-logout')?.addEventListener('click', () => {
+    setAdminAuthenticated(false);
+    renderAdminApp(rootElement);
+  });
+}
+
+function renderAdminLogin(rootElement) {
+  rootElement.innerHTML = `
+    <div class="admin-login-wrapper">
+      <div class="admin-login-card">
+        <div style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+          <div class="login-header-icon">🔐</div>
+          <h2 style="font-size: 22px; font-weight: 800; margin-top: 8px;">Acceso Administrador</h2>
+          <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Ingresa tus credenciales para administrar servicios y pagos</p>
+        </div>
+
+        <form id="admin-login-form" style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="admin-form-group">
+            <label class="admin-form-label">Usuario:</label>
+            <input type="text" id="login-username" class="admin-form-input" placeholder="Lucas" value="Lucas" autocomplete="username" required />
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-form-label">Contraseña:</label>
+            <input type="password" id="login-password" class="admin-form-input" placeholder="••••••••" autocomplete="current-password" required />
+          </div>
+
+          <div id="login-error-msg" style="display: none; background: rgba(225, 29, 72, 0.15); color: #fb7185; border: 1px solid rgba(225, 29, 72, 0.3); padding: 10px 14px; border-radius: var(--radius-md); font-size: 12px; font-weight: 600;">
+            ⚠️ Usuario o contraseña incorrectos
+          </div>
+
+          <button type="submit" class="btn-primary" style="justify-content: center; height: 46px; font-size: 15px; margin-top: 6px;">
+            <span>Ingresar al Panel</span>
+            <span>➔</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  `;
+
+  const form = document.getElementById('admin-login-form');
+  const userIn = document.getElementById('login-username');
+  const passIn = document.getElementById('login-password');
+  const errorMsg = document.getElementById('login-error-msg');
+
+  setTimeout(() => passIn?.focus(), 100);
+
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const u = userIn.value.trim();
+    const p = passIn.value;
+
+    if (u.toLowerCase() === ADMIN_USER.toLowerCase() && p === ADMIN_PASS) {
+      setAdminAuthenticated(true);
+      renderAdminApp(rootElement);
+    } else {
+      errorMsg.style.display = 'block';
+      passIn.value = '';
+      passIn.focus();
+    }
   });
 }
 

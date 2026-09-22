@@ -1,13 +1,16 @@
 -- ============================================================================
 -- LIBRETA CONTABLE Y GESTOR DE SERVICIOS FAMILIARES
--- Esquema de Base de Datos para Supabase (PostgreSQL)
+-- Esquema de Base de Datos para Supabase (PostgreSQL) - VERSIÓN DEFINITIVA
 -- ============================================================================
 
--- Habilitar extensión para UUIDs si no está habilitada
+-- 1. Habilitar extensión para UUIDs
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. TABLA: wallets (Billeteras / Canales de custodia)
-CREATE TABLE IF NOT EXISTS wallets (
+-- 2. Conceder uso del esquema a los roles de Supabase (anon y authenticated)
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+
+-- 3. TABLA: wallets (Billeteras / Canales de custodia)
+CREATE TABLE IF NOT EXISTS public.wallets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     type TEXT NOT NULL CHECK (type IN ('CASH', 'DIGITAL')),
@@ -16,8 +19,8 @@ CREATE TABLE IF NOT EXISTS wallets (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. TABLA: transactions (Movimientos de la libreta)
-CREATE TABLE IF NOT EXISTS transactions (
+-- 4. TABLA: transactions (Movimientos de la libreta)
+CREATE TABLE IF NOT EXISTS public.transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     amount NUMERIC(12, 2) NOT NULL CHECK (amount >= 0),
@@ -30,8 +33,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. TABLA: bills (Facturas de servicios y compromisos fijos)
-CREATE TABLE IF NOT EXISTS bills (
+-- 5. TABLA: bills (Facturas de servicios y compromisos fijos)
+CREATE TABLE IF NOT EXISTS public.bills (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     service_name TEXT NOT NULL,
     amount NUMERIC(12, 2) NOT NULL CHECK (amount >= 0),
@@ -45,14 +48,21 @@ CREATE TABLE IF NOT EXISTS bills (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. ÍNDICES DE ALTO RENDIMIENTO
-CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date DESC);
-CREATE INDEX IF NOT EXISTS idx_transactions_wallet ON transactions(wallet_type);
-CREATE INDEX IF NOT EXISTS idx_bills_status ON bills(status);
-CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills(due_date ASC);
-CREATE INDEX IF NOT EXISTS idx_bills_updated_at ON bills(updated_at DESC);
+-- 6. CONCEDER TODOS LOS PERMISOS EN LAS TABLAS AL ROL ANON
+GRANT ALL ON TABLE public.wallets TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.transactions TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.bills TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
 
--- 5. TRIGGER AUTOMÁTICO PARA ACTUALIZAR updated_at
+-- 7. ÍNDICES DE ALTO RENDIMIENTO
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON public.transactions(date DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_wallet ON public.transactions(wallet_type);
+CREATE INDEX IF NOT EXISTS idx_bills_status ON public.bills(status);
+CREATE INDEX IF NOT EXISTS idx_bills_due_date ON public.bills(due_date ASC);
+CREATE INDEX IF NOT EXISTS idx_bills_updated_at ON public.bills(updated_at DESC);
+
+-- 8. TRIGGER AUTOMÁTICO PARA ACTUALIZAR updated_at
 CREATE OR REPLACE FUNCTION update_modified_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -61,38 +71,51 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS tr_wallets_updated_at ON wallets;
-CREATE TRIGGER tr_wallets_updated_at BEFORE UPDATE ON wallets FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+DROP TRIGGER IF EXISTS tr_wallets_updated_at ON public.wallets;
+CREATE TRIGGER tr_wallets_updated_at BEFORE UPDATE ON public.wallets FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 
-DROP TRIGGER IF EXISTS tr_transactions_updated_at ON transactions;
-CREATE TRIGGER tr_transactions_updated_at BEFORE UPDATE ON transactions FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+DROP TRIGGER IF EXISTS tr_transactions_updated_at ON public.transactions;
+CREATE TRIGGER tr_transactions_updated_at BEFORE UPDATE ON public.transactions FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 
-DROP TRIGGER IF EXISTS tr_bills_updated_at ON bills;
-CREATE TRIGGER tr_bills_updated_at BEFORE UPDATE ON bills FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+DROP TRIGGER IF EXISTS tr_bills_updated_at ON public.bills;
+CREATE TRIGGER tr_bills_updated_at BEFORE UPDATE ON public.bills FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 
--- 6. POLÍTICAS DE ACCESO Y PERMISOS
-GRANT USAGE ON SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+-- 9. POLÍTICAS DE ROW LEVEL SECURITY (Seguras y sin fallos por duplicados)
+ALTER TABLE public.wallets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bills ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE wallets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE bills ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir todo acceso a wallets" ON public.wallets;
+CREATE POLICY "Permitir todo acceso a wallets" ON public.wallets FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
-CREATE POLICY "Permitir todo acceso a wallets" ON wallets FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir todo acceso a transactions" ON transactions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir todo acceso a bills" ON bills FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Permitir todo acceso a transactions" ON public.transactions;
+CREATE POLICY "Permitir todo acceso a transactions" ON public.transactions FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
--- 7. REGISTROS INICIALES DE BILLETERAS (Si no existen)
-INSERT INTO wallets (name, type, current_balance)
+DROP POLICY IF EXISTS "Permitir todo acceso a bills" ON public.bills;
+CREATE POLICY "Permitir todo acceso a bills" ON public.bills FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+-- 10. REGISTROS INICIALES DE BILLETERAS (Si no existen)
+INSERT INTO public.wallets (name, type, current_balance)
 SELECT 'Billetes en Mano', 'CASH', 0.00
-WHERE NOT EXISTS (SELECT 1 FROM wallets WHERE type = 'CASH');
+WHERE NOT EXISTS (SELECT 1 FROM public.wallets WHERE type = 'CASH');
 
-INSERT INTO wallets (name, type, current_balance)
+INSERT INTO public.wallets (name, type, current_balance)
 SELECT 'Cuenta Digital / MP', 'DIGITAL', 0.00
-WHERE NOT EXISTS (SELECT 1 FROM wallets WHERE type = 'DIGITAL');
+WHERE NOT EXISTS (SELECT 1 FROM public.wallets WHERE type = 'DIGITAL');
 
--- Habilitar Publicación en Realtime para sincronización instantánea
-ALTER PUBLICATION supabase_realtime ADD TABLE bills;
-ALTER PUBLICATION supabase_realtime ADD TABLE transactions;
-ALTER PUBLICATION supabase_realtime ADD TABLE wallets;
+-- 11. Habilitar Publicación en Realtime de forma segura
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.bills;
+  EXCEPTION WHEN duplicate_object THEN
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.transactions;
+  EXCEPTION WHEN duplicate_object THEN
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.wallets;
+  EXCEPTION WHEN duplicate_object THEN
+  END;
+END $$;

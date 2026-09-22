@@ -233,3 +233,41 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Modo standalone limpio para el celular de Mariel (?mode=mobile) */
+body.standalone-mobile #dev-shell-header {
+  display: none !important;
+}
+
+body.standalone-mobile #workspace-canvas {
+  padding: 0 !important;
+  min-height: 100vh !important;
+}
+
+body.standalone-mobile .phone-mockup-wrapper {
+  max-width: 100% !important;
+  margin: 0 !important;
+  height: 100vh !important;
+}
+
+body.standalone-mobile .phone-mockup-frame {
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  height: 100vh !important;
+}
+
+body.standalone-mobile .phone-screen {
+  border-radius: 0 !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  border: none !important;
+}
+
+body.standalone-mobile .phone-status-bar {
+  display: none !important;
+}
+
+body.standalone-mobile #admin-viewport-container {
+  display: none !important;
+}
