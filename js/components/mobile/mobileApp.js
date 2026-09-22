@@ -253,139 +253,143 @@ async function renderCurrentTab(rootElement) {
   const activeUser = getActiveUser();
   if (!container || !activeUser) return;
 
-  const summary = await getFinancialSummary(activeUser);
+  try {
+    const summary = await getFinancialSummary(activeUser);
 
-  // Actualizar badge en la pestaña de facturas
-  const billsLabel = document.getElementById('nav-bills-label');
-  if (billsLabel) {
-    billsLabel.innerHTML = summary.pendingBillsCount > 0 
-      ? `Facturas <span style="background: #f59e0b; color: #000; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 800;">${summary.pendingBillsCount}</span>` 
-      : 'Facturas';
-  }
+    // Actualizar badge en la pestaña de facturas
+    const billsLabel = document.getElementById('nav-bills-label');
+    if (billsLabel) {
+      billsLabel.innerHTML = summary.pendingBillsCount > 0 
+        ? `Facturas <span style="background: #f59e0b; color: #000; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 800;">${summary.pendingBillsCount}</span>` 
+        : 'Facturas';
+    }
 
-  if (currentTab === 'BILLS') {
-    await renderMobileBillsView(container);
-  } else if (currentTab === 'HISTORY') {
-    await renderMobileHistoryView(container, activeUser);
-  } else {
-    // DASHBOARD PRINCIPAL DEL USUARIO
-    const recentTx = (await getTransactions(activeUser, 'ALL')).slice(0, 3);
+    if (currentTab === 'BILLS') {
+      await renderMobileBillsView(container);
+    } else if (currentTab === 'HISTORY') {
+      await renderMobileHistoryView(container, activeUser);
+    } else {
+      // DASHBOARD PRINCIPAL DEL USUARIO
+      const recentTx = (await getTransactions(activeUser, 'ALL')).slice(0, 3);
 
-    container.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 16px;">
-        <!-- TARJETAS DE SALDO GIGANTES DEL USUARIO -->
-        <div class="balance-cards-grid">
-          <!-- Tarjeta Verde: Efectivo -->
-          <div class="balance-card card-cash">
-            <div class="balance-card-header">
-              <span class="balance-card-label">
-                <span>💵</span>
-                <span>Billetes en Mano</span>
-              </span>
-              <span class="balance-card-icon">💰</span>
-            </div>
-            <div class="balance-card-amount">
-              ${formatCurrency(summary.totalCash)}
-            </div>
-            <div class="balance-card-footer">
-              <span>Efectivo disponible físico</span>
-              <span>● Al día</span>
-            </div>
-          </div>
-
-          <!-- Tarjeta Azul/Violeta: Digital -->
-          <div class="balance-card card-digital">
-            <div class="balance-card-header">
-              <span class="balance-card-label">
-                <span>💳</span>
-                <span>En Cuenta Digital</span>
-              </span>
-              <span class="balance-card-icon">📱</span>
-            </div>
-            <div class="balance-card-amount">
-              ${formatCurrency(summary.totalDigital)}
-            </div>
-            <div class="balance-card-footer">
-              <span>Mercado Pago / Banco</span>
-              <span>● Al día</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- TARJETA DE ALERTA: FACTURAS PENDIENTES DEL HOGAR -->
-        ${summary.pendingBillsCount > 0 ? `
-          <div class="alert-bills-card" id="alert-card-trigger">
-            <div class="alert-left-group">
-              <div class="alert-icon-badge">⚠️</div>
-              <div class="alert-text-group">
-                <h3>Facturas del Hogar</h3>
-                <div class="alert-amount">${formatCurrency(summary.totalPendingDebt)}</div>
-                <div class="alert-count">${summary.pendingBillsCount} boleta(s) por pagar</div>
+      container.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- TARJETAS DE SALDO GIGANTES DEL USUARIO -->
+          <div class="balance-cards-grid">
+            <!-- Tarjeta Verde: Efectivo -->
+            <div class="balance-card card-cash">
+              <div class="balance-card-header">
+                <span class="balance-card-label">
+                  <span>💵</span>
+                  <span>Billetes en Mano</span>
+                </span>
+                <span class="balance-card-icon">💰</span>
+              </div>
+              <div class="balance-card-amount">
+                ${formatCurrency(summary.totalCash)}
+              </div>
+              <div class="balance-card-footer">
+                <span>Efectivo disponible físico</span>
+                <span>● Al día</span>
               </div>
             </div>
-            <div class="alert-chevron">➔</div>
-          </div>
-        ` : `
-          <div class="all-clear-banner">
-            <span style="font-size: 18px;">✅</span>
-            <span>¡Sin deudas! Todas las facturas de la casa están pagadas.</span>
-          </div>
-        `}
 
-        <!-- BALANCE REAL NETO PERSONAL -->
-        <div class="real-net-summary">
-          <div>
-            <div class="real-net-label">Tu Dinero Libre</div>
-            <div style="font-size: 11px; color: var(--text-dim);">Disponible menos compromisos del hogar</div>
-          </div>
-          <div class="real-net-amount" style="color: ${summary.realNetBalance >= 0 ? 'var(--color-cash-light)' : 'var(--color-danger-light)'};">
-            ${formatCurrency(summary.realNetBalance)}
-          </div>
-        </div>
-
-        <!-- MINI HISTORIAL RECIENTE -->
-        <div>
-          <div class="section-header">
-            <span class="section-title">Tus Últimos Movimientos</span>
-            <button type="button" class="section-link-btn" id="btn-view-all-history">Ver todo</button>
-          </div>
-
-          <div class="recent-transactions-list" style="margin-top: 10px;">
-            ${recentTx.length === 0 ? `
-              <div style="padding: 16px; background: var(--bg-surface); border-radius: var(--radius-md); text-align: center; color: var(--text-muted); font-size: 13px;">
-                Aún no tienes movimientos registrados. ¡Toca "Anotar Cobro" abajo!
+            <!-- Tarjeta Azul/Violeta: Digital -->
+            <div class="balance-card card-digital">
+              <div class="balance-card-header">
+                <span class="balance-card-label">
+                  <span>💳</span>
+                  <span>En Cuenta Digital</span>
+                </span>
+                <span class="balance-card-icon">📱</span>
               </div>
-            ` : recentTx.map(tx => {
-              const isIncome = tx.type === 'INCOME';
-              const isCash = tx.wallet_type === 'CASH';
-              return `
-                <div class="tx-card-mini">
-                  <div class="tx-left">
-                    <div class="tx-icon-pill ${isIncome ? 'income' : 'expense'}">
-                      ${isIncome ? '↓' : '↑'}
-                    </div>
-                    <div class="tx-info">
-                      <h4>${tx.category}</h4>
-                      <p>${isCash ? '💵 Billete' : '💳 Digital'} ${tx.note ? `• ${tx.note}` : ''}</p>
-                    </div>
-                  </div>
-                  <div class="tx-amount ${isIncome ? 'income' : 'expense'}">
-                    ${isIncome ? '+' : '-'}${formatCurrency(tx.amount)}
-                  </div>
+              <div class="balance-card-amount">
+                ${formatCurrency(summary.totalDigital)}
+              </div>
+              <div class="balance-card-footer">
+                <span>Mercado Pago / Banco</span>
+                <span>● Al día</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TARJETA DE ALERTA: FACTURAS PENDIENTES DEL HOGAR -->
+          ${summary.pendingBillsCount > 0 ? `
+            <div class="alert-bills-card" id="alert-card-trigger">
+              <div class="alert-left-group">
+                <div class="alert-icon-badge">⚠️</div>
+                <div class="alert-text-group">
+                  <div class="alert-title">Facturas del Hogar por Pagar</div>
+                  <div class="alert-desc">${summary.pendingBillsCount} boleta(s) pendientes de servicio</div>
                 </div>
-              `;
-            }).join('')}
+              </div>
+              <div class="alert-amount">${formatCurrency(summary.totalPendingDebt)}</div>
+            </div>
+          ` : `
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md); padding: 12px 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: #34d399;">
+              <span>✅</span>
+              <span>No hay facturas de servicios pendientes para el hogar.</span>
+            </div>
+          `}
+
+          <!-- HISTORIAL RÁPIDO DE ÚLTIMOS MOVIMIENTOS -->
+          <div class="card" style="padding: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="font-size: 14px; font-weight: 700; color: var(--text-main);">Tus Últimos Movimientos</h3>
+              <button type="button" id="btn-view-all-history" style="background: none; border: none; color: var(--color-digital); font-size: 12px; font-weight: 700; cursor: pointer;">
+                Ver Todos →
+              </button>
+            </div>
+
+            <div class="tx-list">
+              ${recentTx.length === 0 ? `
+                <div style="text-align: center; padding: 24px 0; color: var(--text-muted); font-size: 13px;">
+                  Aún no has anotado movimientos.<br/>Toca <strong>＋ Anotar Cobro</strong> abajo para empezar.
+                </div>
+              ` : recentTx.map(tx => {
+                const isIncome = tx.type === 'INCOME';
+                const isCash = tx.wallet_type === 'CASH';
+                return `
+                  <div class="tx-item">
+                    <div class="tx-left">
+                      <div class="tx-icon ${isIncome ? 'income' : 'expense'}">
+                        ${isIncome ? '↓' : '↑'}
+                      </div>
+                      <div class="tx-info">
+                        <h4>${tx.category}</h4>
+                        <p>${isCash ? '💵 Billete' : '💳 Digital'} ${tx.note ? `• ${tx.note}` : ''}</p>
+                      </div>
+                    </div>
+                    <div class="tx-amount ${isIncome ? 'income' : 'expense'}">
+                      ${isIncome ? '+' : '-'}${formatCurrency(tx.amount)}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
           </div>
         </div>
+      `;
+
+      document.getElementById('alert-card-trigger')?.addEventListener('click', () => {
+        switchTab('BILLS', rootElement);
+      });
+
+      document.getElementById('btn-view-all-history')?.addEventListener('click', () => {
+        switchTab('HISTORY', rootElement);
+      });
+    }
+  } catch (err) {
+    console.error('❌ Error al cargar la vista de usuario:', err);
+    container.innerHTML = `
+      <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #fca5a5; padding: 20px; border-radius: 14px; margin: 16px 0; text-align: center;">
+        <div style="font-size: 28px; margin-bottom: 8px;">⚠️</div>
+        <p style="font-weight: bold; font-size: 15px; margin-bottom: 6px;">Ocurrió un error al cargar la vista</p>
+        <p style="font-size: 12px; color: #cbd5e1; margin-bottom: 14px;">${err.message}</p>
+        <button type="button" onclick="location.reload()" style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; font-size: 13px; cursor: pointer;">
+          🔄 Recargar
+        </button>
       </div>
     `;
-
-    document.getElementById('alert-card-trigger')?.addEventListener('click', () => {
-      switchTab('BILLS', rootElement);
-    });
-
-    document.getElementById('btn-view-all-history')?.addEventListener('click', () => {
-      switchTab('HISTORY', rootElement);
-    });
   }
 }

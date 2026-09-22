@@ -6,9 +6,20 @@
  */
 
 const DB_NAME = 'LibretaContableDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbInstance = null;
+
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 export async function getDb() {
   if (dbInstance) return dbInstance;
@@ -28,20 +39,41 @@ export async function getDb() {
 
     request.onupgradeneeded = (e) => {
       const db = e.target.result;
+      const tx = e.target.transaction;
 
       // 1. Wallets Store
       if (!db.objectStoreNames.contains('wallets')) {
         const walletStore = db.createObjectStore('wallets', { keyPath: 'id' });
-        walletStore.createIndex('type', 'type', { unique: true });
+        walletStore.createIndex('user_name', 'user_name', { unique: false });
+        walletStore.createIndex('type', 'type', { unique: false });
+        walletStore.createIndex('user_wallet_type', ['user_name', 'type'], { unique: true });
+      } else {
+        const walletStore = tx.objectStore('wallets');
+        if (walletStore.indexNames.contains('type')) {
+          walletStore.deleteIndex('type');
+        }
+        walletStore.createIndex('type', 'type', { unique: false });
+        if (!walletStore.indexNames.contains('user_name')) {
+          walletStore.createIndex('user_name', 'user_name', { unique: false });
+        }
+        if (!walletStore.indexNames.contains('user_wallet_type')) {
+          walletStore.createIndex('user_wallet_type', ['user_name', 'type'], { unique: true });
+        }
       }
 
       // 2. Transactions Store
       if (!db.objectStoreNames.contains('transactions')) {
         const txStore = db.createObjectStore('transactions', { keyPath: 'id' });
+        txStore.createIndex('user_name', 'user_name', { unique: false });
         txStore.createIndex('date', 'date', { unique: false });
         txStore.createIndex('wallet_type', 'wallet_type', { unique: false });
         txStore.createIndex('type', 'type', { unique: false });
         txStore.createIndex('is_synced', 'is_synced', { unique: false });
+      } else {
+        const txStore = tx.objectStore('transactions');
+        if (!txStore.indexNames.contains('user_name')) {
+          txStore.createIndex('user_name', 'user_name', { unique: false });
+        }
       }
 
       // 3. Bills Store
@@ -77,7 +109,7 @@ export async function initializeUserWallets(userName) {
   if (userWallets.length === 0) {
     const defaultWallets = [
       {
-        id: `cash_${normalized.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+        id: generateUUID(),
         user_name: normalized,
         name: 'Billetes en Mano',
         type: 'CASH',
@@ -85,7 +117,7 @@ export async function initializeUserWallets(userName) {
         updated_at: new Date().toISOString()
       },
       {
-        id: `digital_${normalized.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+        id: generateUUID(),
         user_name: normalized,
         name: 'Cuenta Digital / MP',
         type: 'DIGITAL',
