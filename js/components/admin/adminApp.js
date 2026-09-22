@@ -17,10 +17,10 @@ import {
   getAllRegisteredUsers,
   wipeAllDataForProduction,
   deleteUserCompletely
-} from '../../services/accounting.js?v=12';
-import { configureSupabase, testSupabaseConnection } from '../../db/supabase.js?v=12';
-import { getConfig } from '../../db/indexedDb.js?v=12';
-import { toggleTheme, updateAllThemeIcons } from '../../services/theme.js?v=12';
+} from '../../services/accounting.js?v=13';
+import { configureSupabase, testSupabaseConnection } from '../../db/supabase.js?v=13';
+import { getConfig } from '../../db/indexedDb.js?v=13';
+import { toggleTheme, updateAllThemeIcons } from '../../services/theme.js?v=13';
 
 const ADMIN_USER = 'Admin';
 const ADMIN_PASS = 'JjunieBronce1';
@@ -98,21 +98,22 @@ export async function renderAdminApp(rootElement) {
       </div>
 
       <!-- Barra de Filtro por Integrante de la Familia -->
-      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--bg-input); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
-        <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Ver Saldos de:</span>
-        <button type="button" class="admin-tab-btn ${adminActiveUserFilter === null ? 'active' : ''}" id="user-tab-all">
+      <div class="admin-user-selector-bar">
+        <span class="admin-user-selector-label">Ver Saldos de:</span>
+        <button type="button" class="admin-user-pill ${adminActiveUserFilter === null ? 'selected' : ''}" id="user-tab-all">
           🏠 Consolidado Hogar
         </button>
-        ${registeredUsers.map(u => `
-          <div style="display: inline-flex; align-items: center; background: ${adminActiveUserFilter === u ? 'var(--color-primary)' : 'var(--bg-surface)'}; border-radius: var(--radius-pill); padding-right: 6px; border: 1px solid var(--border-subtle);">
-            <button type="button" class="admin-tab-btn ${adminActiveUserFilter === u ? 'active' : ''}" data-user-filter="${u}" style="border: none; background: transparent;">
-              👤 ${u}
-            </button>
-            <button type="button" class="btn-delete-user" data-delete-user="${u}" title="Eliminar a ${u}" style="background: transparent; border: none; color: ${adminActiveUserFilter === u ? '#fee2e2' : '#ef4444'}; font-size: 11px; font-weight: 800; cursor: pointer; padding: 2px 4px; border-radius: 4px; opacity: 0.8;">
+        ${registeredUsers.map(u => {
+          const isSelected = adminActiveUserFilter === u;
+          return `
+          <div class="admin-user-pill ${isSelected ? 'selected' : ''}" data-user-filter="${u}">
+            <span class="admin-user-pill-label">👤 ${u}</span>
+            <button type="button" class="btn-delete-user" data-delete-user="${u}" title="Eliminar a ${u}">
               ✕
             </button>
           </div>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
 
       <!-- Métricas Financieras (4 Tarjetas) -->

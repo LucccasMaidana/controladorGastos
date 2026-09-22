@@ -5,11 +5,11 @@
  * ============================================================================
  */
 
-import { initializeDefaultWallets, getAllFromStore, getConfig, setConfig, clearAllLocalData } from './db/indexedDb.js?v=12';
-import { initMobileApp } from './components/mobile/mobileApp.js?v=12';
-import { initAdminApp } from './components/admin/adminApp.js?v=12';
-import { initSyncEngine, onSyncStateChange, runSyncCycle } from './services/sync.js?v=12';
-import { applyTheme, toggleTheme, updateAllThemeIcons } from './services/theme.js?v=12';
+import { initializeDefaultWallets, getAllFromStore, getConfig, setConfig, clearAllLocalData } from './db/indexedDb.js?v=13';
+import { initMobileApp } from './components/mobile/mobileApp.js?v=13';
+import { initAdminApp } from './components/admin/adminApp.js?v=13';
+import { initSyncEngine, onSyncStateChange, runSyncCycle } from './services/sync.js?v=13';
+import { applyTheme, toggleTheme, updateAllThemeIcons } from './services/theme.js?v=13';
 
 let currentLayoutMode = 'SPLIT'; // 'MOBILE', 'ADMIN', 'SPLIT'
 

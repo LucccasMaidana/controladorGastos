@@ -6,14 +6,14 @@
  * ============================================================================
  */
 
-import { getFinancialSummary, getTransactions, formatCurrency, onAccountingChange } from '../../services/accounting.js?v=12';
-import { openKeypadModal } from './keypadModal.js?v=12';
-import { renderMobileBillsView } from './billsView.js?v=12';
-import { renderMobileHistoryView } from './historyView.js?v=12';
-import { initAdminApp, setAdminAuthenticated } from '../admin/adminApp.js?v=12';
-import { initializeUserWallets, clearAllLocalData } from '../../db/indexedDb.js?v=12';
-import { pushWalletToCloud, pullWalletsFromCloud } from '../../db/supabase.js?v=12';
-import { toggleTheme, updateAllThemeIcons } from '../../services/theme.js?v=12';
+import { getFinancialSummary, getTransactions, formatCurrency, onAccountingChange } from '../../services/accounting.js?v=13';
+import { openKeypadModal } from './keypadModal.js?v=13';
+import { renderMobileBillsView } from './billsView.js?v=13';
+import { renderMobileHistoryView } from './historyView.js?v=13';
+import { initAdminApp, setAdminAuthenticated } from '../admin/adminApp.js?v=13';
+import { initializeUserWallets, clearAllLocalData } from '../../db/indexedDb.js?v=13';
+import { pushWalletToCloud, pullWalletsFromCloud } from '../../db/supabase.js?v=13';
+import { toggleTheme, updateAllThemeIcons } from '../../services/theme.js?v=13';
 
 let currentTab = 'DASHBOARD'; // 'DASHBOARD', 'BILLS', 'HISTORY'
 const STORAGE_USER_KEY = 'libreta_active_user';
