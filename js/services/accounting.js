@@ -13,7 +13,7 @@ import {
   initializeUserWallets,
   clearAllLocalData 
 } from '../db/indexedDb.js';
-import { pushTransactionToCloud, pushBillToCloud } from '../db/supabase.js';
+import { pushTransactionToCloud, pushBillToCloud, pushWalletToCloud } from '../db/supabase.js';
 
 // Subscriptores a cambios de estado contable
 const listeners = new Set();
@@ -23,10 +23,14 @@ export function onAccountingChange(callback) {
   return () => listeners.delete(callback);
 }
 
-function notifyChange() {
+export function notifyAccountingChange() {
   listeners.forEach(cb => {
     try { cb(); } catch (e) { console.error('Error en listener contable:', e); }
   });
+}
+
+function notifyChange() {
+  notifyAccountingChange();
 }
 
 /**
@@ -68,7 +72,8 @@ export function generateUUID() {
  */
 export async function getWalletByType(userName = 'Usuario', walletType = 'CASH') {
   const normUser = (userName || 'Usuario').trim();
-  await initializeUserWallets(normUser);
+  const userWallets = await initializeUserWallets(normUser);
+  userWallets.forEach(w => pushWalletToCloud(w).catch(() => {}));
   const wallets = await getAllFromStore('wallets');
   let wallet = wallets.find(w => 
     w.user_name && w.user_name.toLowerCase() === normUser.toLowerCase() && w.type === walletType
@@ -177,12 +182,13 @@ export async function getFinancialSummary(userName = null) {
   const totalPendingDebt = roundCurrency(pendingBills.reduce((acc, b) => acc + (Number(b.amount) || 0), 0));
 
   if (userName) {
-    const normUser = userName.trim().toLowerCase();
-    await initializeUserWallets(userName);
+    const normUser = userName.trim();
+    const userWallets = await initializeUserWallets(normUser);
+    userWallets.forEach(w => pushWalletToCloud(w).catch(() => {}));
     const allUpdatedWallets = await getAllFromStore('wallets');
-    const userWallets = allUpdatedWallets.filter(w => w.user_name && w.user_name.toLowerCase() === normUser);
-    const cash = userWallets.find(w => w.type === 'CASH')?.current_balance || 0;
-    const digital = userWallets.find(w => w.type === 'DIGITAL')?.current_balance || 0;
+    const matchedWallets = allUpdatedWallets.filter(w => w.user_name && w.user_name.toLowerCase() === normUser.toLowerCase());
+    const cash = matchedWallets.find(w => w.type === 'CASH')?.current_balance || 0;
+    const digital = matchedWallets.find(w => w.type === 'DIGITAL')?.current_balance || 0;
 
     return {
       userName,

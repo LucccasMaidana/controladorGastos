@@ -507,7 +507,7 @@ function openSettleBillModal(bill, rootElement, registeredUsers = []) {
     }
   }
 
-  const defaultPayerOptions = registeredUsers.length > 0 ? registeredUsers : ['Mariel Vallejos', 'Lucas Maidana'];
+  const defaultPayerOptions = registeredUsers.length > 0 ? registeredUsers : ['Usuario'];
 
   modalRoot.innerHTML = `
     <div class="admin-modal-backdrop" id="modal-settle-backdrop">

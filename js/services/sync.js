@@ -6,7 +6,16 @@
  */
 
 import { getAllFromStore, putInStore, getConfig, setConfig } from '../db/indexedDb.js';
-import { getSupabase, pullBillsFromCloud, pushTransactionToCloud, subscribeToRealtime } from '../db/supabase.js';
+import { 
+  getSupabase, 
+  pullBillsFromCloud, 
+  pushTransactionToCloud, 
+  pushWalletToCloud,
+  pullWalletsFromCloud,
+  pullTransactionsFromCloud,
+  subscribeToRealtime 
+} from '../db/supabase.js';
+import { notifyAccountingChange } from './accounting.js';
 
 let syncState = {
   isOnline: navigator.onLine,
@@ -49,6 +58,8 @@ export async function runSyncCycle(triggerReason = 'manual') {
   updateSyncState({ isOnline: true, isSyncing: true });
 
   try {
+    let hasChanges = false;
+
     // 1. PUSH: Enviar transacciones locales pendientes
     const allTx = await getAllFromStore('transactions');
     const unsyncedTx = allTx.filter(t => !t.is_synced);
@@ -62,19 +73,60 @@ export async function runSyncCycle(triggerReason = 'manual') {
       }
     }
 
-    // 2. PULL: Descargar facturas actualizadas desde la nube
+    // 2. PUSH: Asegurar que todas las billeteras locales estén en la nube
+    const localWallets = await getAllFromStore('wallets');
+    for (const w of localWallets) {
+      if (w.user_name && w.user_name.toLowerCase() !== 'usuario') {
+        await pushWalletToCloud(w);
+      }
+    }
+
+    // 3. PULL: Descargar billeteras remotas (para ver integrantes registrados en otros dispositivos)
+    const remoteWallets = await pullWalletsFromCloud();
+    if (remoteWallets && remoteWallets.length > 0) {
+      for (const rw of remoteWallets) {
+        const local = localWallets.find(lw => 
+          lw.user_name?.toLowerCase() === rw.user_name?.toLowerCase() && lw.type === rw.type
+        );
+        if (!local) {
+          await putInStore('wallets', rw);
+          hasChanges = true;
+        } else if (new Date(rw.updated_at) > new Date(local.updated_at || 0)) {
+          await putInStore('wallets', rw);
+          hasChanges = true;
+        }
+      }
+    }
+
+    // 4. PULL: Descargar transacciones remotas
+    const lastTxSync = await getConfig('last_tx_sync_timestamp');
+    const remoteTxs = await pullTransactionsFromCloud(lastTxSync);
+    if (remoteTxs && remoteTxs.length > 0) {
+      for (const rtx of remoteTxs) {
+        const existing = allTx.find(t => t.id === rtx.id);
+        if (!existing) {
+          rtx.is_synced = true;
+          await putInStore('transactions', rtx);
+          hasChanges = true;
+        }
+      }
+      await setConfig('last_tx_sync_timestamp', new Date().toISOString());
+    }
+
+    // 5. PULL: Descargar facturas actualizadas desde la nube
     const lastSyncTime = await getConfig('last_bills_sync_timestamp');
     const remoteBills = await pullBillsFromCloud(lastSyncTime);
 
     let newBillsCount = 0;
     if (remoteBills && remoteBills.length > 0) {
       for (const bill of remoteBills) {
-        const local = await getAllFromStore('bills');
-        const existing = local.find(b => b.id === bill.id);
+        const localBills = await getAllFromStore('bills');
+        const existing = localBills.find(b => b.id === bill.id);
         if (!existing && bill.status === 'PENDING') {
           newBillsCount++;
         }
         await putInStore('bills', bill);
+        hasChanges = true;
       }
     }
 
@@ -84,6 +136,11 @@ export async function runSyncCycle(triggerReason = 'manual') {
     // Si hay nuevas facturas y se soportan notificaciones, notificar:
     if (newBillsCount > 0) {
       triggerLocalBillNotification(newBillsCount);
+    }
+
+    // Si hubo cambios contables (usuarios nuevos, saldos actualizados), refrescar UI:
+    if (hasChanges) {
+      notifyAccountingChange();
     }
 
     updateSyncState({

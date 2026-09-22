@@ -107,6 +107,7 @@ export async function pushTransactionToCloud(tx) {
   try {
     const { error } = await client.from('transactions').upsert({
       id: tx.id,
+      user_name: tx.user_name || 'Usuario',
       date: tx.date,
       amount: tx.amount,
       type: tx.type,
@@ -129,6 +130,54 @@ export async function pushTransactionToCloud(tx) {
 }
 
 /**
+ * Subir o actualizar una billetera a Supabase
+ */
+export async function pushWalletToCloud(wallet) {
+  const client = await getSupabase();
+  if (!client) return false;
+
+  try {
+    const { error } = await client.from('wallets').upsert({
+      id: wallet.id,
+      user_name: wallet.user_name,
+      name: wallet.name,
+      type: wallet.type,
+      current_balance: wallet.current_balance,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_name,type' });
+
+    if (error) {
+      console.error('Error subiendo billetera a Supabase:', error);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('Error de red al subir billetera:', e);
+    return false;
+  }
+}
+
+/**
+ * Descargar billeteras desde la nube (Pull)
+ */
+export async function pullWalletsFromCloud() {
+  const client = await getSupabase();
+  if (!client) return [];
+
+  try {
+    const { data, error } = await client.from('wallets').select('*');
+    if (error) {
+      console.error('Error descargando billeteras de Supabase:', error);
+      return [];
+    }
+    return data || [];
+  } catch (e) {
+    console.warn('Fallo de red al descargar billeteras:', e);
+    return [];
+  }
+}
+
+/**
  * Subir o actualizar una factura en la nube (creada o liquidada por Lucas)
  */
 export async function pushBillToCloud(bill) {
@@ -145,7 +194,8 @@ export async function pushBillToCloud(bill) {
       paid_at: bill.paid_at || null,
       paid_cash_amount: bill.paid_cash_amount || 0.00,
       paid_digital_amount: bill.paid_digital_amount || 0.00,
-      created_by: bill.created_by || 'Lucas - PC',
+      paid_by: bill.paid_by || null,
+      created_by: bill.created_by || 'Admin',
       updated_at: new Date().toISOString()
     });
 
@@ -185,6 +235,30 @@ export async function pullBillsFromCloud(lastSyncTimestamp = null) {
 }
 
 /**
+ * Descargar transacciones desde la nube (Pull)
+ */
+export async function pullTransactionsFromCloud(lastSyncTimestamp = null) {
+  const client = await getSupabase();
+  if (!client) return [];
+
+  try {
+    let query = client.from('transactions').select('*');
+    if (lastSyncTimestamp) {
+      query = query.gt('updated_at', lastSyncTimestamp);
+    }
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error descargando transacciones de Supabase:', error);
+      return [];
+    }
+    return data || [];
+  } catch (e) {
+    console.warn('Fallo de red al descargar transacciones:', e);
+    return [];
+  }
+}
+
+/**
  * Suscribirse a cambios en tiempo real (Supabase Realtime)
  */
 export async function subscribeToRealtime(onChangeCallback) {
@@ -202,6 +276,10 @@ export async function subscribeToRealtime(onChangeCallback) {
         console.log('⚡ Cambio en transacciones en tiempo real recibido:', payload);
         onChangeCallback('transactions', payload);
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, (payload) => {
+        console.log('⚡ Cambio en billeteras en tiempo real recibido:', payload);
+        onChangeCallback('wallets', payload);
+      })
       .subscribe();
 
     return channel;
@@ -210,3 +288,4 @@ export async function subscribeToRealtime(onChangeCallback) {
     return null;
   }
 }
+

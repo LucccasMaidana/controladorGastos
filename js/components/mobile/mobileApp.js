@@ -68,7 +68,7 @@ function renderMobileWelcome(rootElement) {
             type="text" 
             id="input-user-fullname" 
             class="admin-form-input" 
-            placeholder="Ej: Mariel Vallejos" 
+            placeholder="Ej: Nombre y Apellido" 
             autocomplete="name" 
             style="height: 52px; font-size: 16px; border-radius: var(--radius-lg); text-align: center; font-weight: 600;" 
             required 
