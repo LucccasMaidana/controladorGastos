@@ -20,6 +20,7 @@ import {
 } from '../../services/accounting.js';
 import { configureSupabase, testSupabaseConnection } from '../../db/supabase.js';
 import { getConfig } from '../../db/indexedDb.js';
+import { toggleTheme, updateAllThemeIcons } from '../../services/theme.js';
 
 const ADMIN_USER = 'Admin';
 const ADMIN_PASS = 'JjunieBronce1';
@@ -74,6 +75,9 @@ export async function renderAdminApp(rootElement) {
         </div>
 
         <div class="admin-header-actions">
+          <button type="button" class="btn-secondary" id="btn-theme-admin" title="Alternar modo claro / oscuro" style="padding: 0 12px;">
+            <span data-theme-icon>🌙</span>
+          </button>
           <button type="button" class="btn-secondary" id="btn-wipe-production" title="Borrar datos de prueba para dejar la app limpia" style="color: #fb7185; border-color: rgba(251, 113, 133, 0.3);">
             <span>🗑️</span>
             <span>Puesta a Cero</span>
@@ -243,6 +247,9 @@ export async function renderAdminApp(rootElement) {
   `;
 
   // Attach event listeners
+  document.getElementById('btn-theme-admin')?.addEventListener('click', toggleTheme);
+  updateAllThemeIcons();
+
   document.getElementById('btn-open-create-bill')?.addEventListener('click', () => openCreateBillModal(rootElement));
   document.getElementById('btn-open-settings')?.addEventListener('click', () => openSettingsModal(rootElement));
 
@@ -258,7 +265,7 @@ export async function renderAdminApp(rootElement) {
       const mobileRoot = document.getElementById('mobile-app-root');
       if (mobileRoot) {
         localStorage.removeItem('libreta_active_user');
-        window.location.reload();
+        setTimeout(() => window.location.reload(), 300);
       } else {
         renderAdminApp(rootElement);
       }

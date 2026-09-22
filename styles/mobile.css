@@ -55,6 +55,25 @@
   border: 1px solid var(--border-subtle);
 }
 
+.btn-theme-toggle {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.btn-theme-toggle:active {
+  transform: scale(0.92);
+}
+
 /* Scrollable Content */
 .mobile-content-area {
   flex: 1;

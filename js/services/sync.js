@@ -5,7 +5,7 @@
  * ============================================================================
  */
 
-import { getAllFromStore, putInStore, getConfig, setConfig } from '../db/indexedDb.js';
+import { getAllFromStore, putInStore, deleteFromStore, clearAllLocalData, getConfig, setConfig } from '../db/indexedDb.js';
 import { 
   getSupabase, 
   pullBillsFromCloud, 
@@ -23,6 +23,60 @@ let syncState = {
   lastSync: null,
   pendingCount: 0
 };
+
+let isWipingInProgress = false;
+
+/**
+ * Procedimiento de emergencia cuando se detecta un reinicio total (Puesta a Cero)
+ */
+export async function handleSystemWipeSignal() {
+  if (isWipingInProgress) return;
+  isWipingInProgress = true;
+  console.warn('🚨 RESET TOTAL DETECTADO: El Administrador ha reiniciado el sistema.');
+
+  try {
+    await clearAllLocalData();
+  } catch (e) {
+    console.error('Error vaciando IndexedDB:', e);
+  }
+
+  localStorage.removeItem('libreta_active_user');
+  sessionStorage.removeItem('libreta_active_user');
+
+  // Modal / Overlay que bloquea todo el celular
+  let overlay = document.getElementById('system-wipe-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'system-wipe-overlay';
+    overlay.style.cssText = `
+      position: fixed; inset: 0; z-index: 9999999;
+      background: rgba(15, 23, 42, 0.97); backdrop-filter: blur(12px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: white; text-align: center; padding: 24px; font-family: system-ui, sans-serif;
+      animation: fadeIn 0.3s ease-out;
+    `;
+    overlay.innerHTML = `
+      <div style="width: 76px; height: 76px; border-radius: 50%; background: rgba(239, 68, 68, 0.2); border: 2px solid #ef4444; display: flex; align-items: center; justify-content: center; font-size: 38px; margin-bottom: 20px;">
+        🗑️
+      </div>
+      <h2 style="font-size: 22px; font-weight: 800; margin-bottom: 10px; color: #f87171;">
+        Sistema Reiniciado
+      </h2>
+      <p style="font-size: 14px; color: #94a3b8; max-width: 320px; line-height: 1.5; margin-bottom: 24px;">
+        El Administrador realizó una <strong>Puesta a Cero</strong>. Se eliminaron todos los usuarios, billeteras y saldos.
+      </p>
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #38bdf8; font-weight: 600;">
+        <span style="display: inline-block; animation: spin 1s linear infinite;">🔄</span>
+        <span>Redirigiendo a pantalla de inicio...</span>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  setTimeout(() => {
+    window.location.reload();
+  }, 1200);
+}
 
 const syncListeners = new Set();
 
@@ -43,6 +97,8 @@ function updateSyncState(partial) {
  * Ejecutar ciclo completo de sincronización
  */
 export async function runSyncCycle(triggerReason = 'manual') {
+  if (isWipingInProgress) return { success: false, reason: 'wiping' };
+
   if (!navigator.onLine) {
     updateSyncState({ isOnline: false, isSyncing: false });
     return { success: false, reason: 'offline' };
@@ -59,8 +115,47 @@ export async function runSyncCycle(triggerReason = 'manual') {
 
   try {
     let hasChanges = false;
+    const activeUser = localStorage.getItem('libreta_active_user');
+    let localWallets = await getAllFromStore('wallets');
 
-    // 1. PUSH: Enviar transacciones locales pendientes
+    // 0. VERIFICACIÓN CRÍTICA EN LA NUBE (DETECCIÓN DE PUESTA A CERO O USUARIO BORRADO)
+    const remoteWallets = await pullWalletsFromCloud();
+
+    if (remoteWallets !== null && Array.isArray(remoteWallets)) {
+      // CASO A: Supabase está 100% vacío (Puesta a Cero ejecutada por Admin)
+      if (remoteWallets.length === 0) {
+        if (localWallets.length > 0 || activeUser) {
+          console.warn('⚠️ Supabase está completamente vacío. Puesta a Cero detectada en ciclo de sincronización.');
+          await handleSystemWipeSignal();
+          return { success: true, wiped: true };
+        }
+      } else {
+        // CASO B: Supabase tiene usuarios, pero el usuario logueado en este dispositivo fue eliminado
+        if (activeUser && activeUser.toLowerCase() !== 'admin') {
+          const userExistsInCloud = remoteWallets.some(w => 
+            w.user_name && w.user_name.trim().toLowerCase() === activeUser.trim().toLowerCase()
+          );
+          if (!userExistsInCloud) {
+            console.warn(`⚠️ El usuario "${activeUser}" ya no existe en la nube. Cerrando sesión local...`);
+            await handleSystemWipeSignal();
+            return { success: true, wiped: true };
+          }
+        }
+
+        // CASO C: Limpiar billeteras locales de usuarios eliminados de la nube
+        const remoteUserNames = new Set(remoteWallets.map(w => w.user_name?.toLowerCase()).filter(Boolean));
+        for (const lw of localWallets) {
+          if (lw.user_name && lw.user_name.toLowerCase() !== 'usuario' && !remoteUserNames.has(lw.user_name.toLowerCase())) {
+            console.log(`🧹 Eliminando billetera local huérfana de: ${lw.user_name}`);
+            await deleteFromStore('wallets', lw.id);
+            hasChanges = true;
+          }
+        }
+        localWallets = await getAllFromStore('wallets');
+      }
+    }
+
+    // 1. PUSH: Enviar transacciones locales pendientes (solo si el usuario aún existe)
     const allTx = await getAllFromStore('transactions');
     const unsyncedTx = allTx.filter(t => !t.is_synced);
     updateSyncState({ pendingCount: unsyncedTx.length });
@@ -73,16 +168,16 @@ export async function runSyncCycle(triggerReason = 'manual') {
       }
     }
 
-    // 2. PUSH: Asegurar que todas las billeteras locales estén en la nube
-    const localWallets = await getAllFromStore('wallets');
-    for (const w of localWallets) {
-      if (w.user_name && w.user_name.toLowerCase() !== 'usuario') {
-        await pushWalletToCloud(w);
+    // 2. PUSH: Asegurar que la billetera del usuario activo local esté en la nube
+    if (activeUser && activeUser.toLowerCase() !== 'admin') {
+      for (const w of localWallets) {
+        if (w.user_name && w.user_name.toLowerCase() === activeUser.toLowerCase()) {
+          await pushWalletToCloud(w);
+        }
       }
     }
 
-    // 3. PULL: Descargar billeteras remotas (para ver integrantes registrados en otros dispositivos)
-    const remoteWallets = await pullWalletsFromCloud();
+    // 3. PULL: Descargar billeteras remotas
     if (remoteWallets && remoteWallets.length > 0) {
       for (const rw of remoteWallets) {
         const local = localWallets.find(lw => 
@@ -192,6 +287,10 @@ export function initSyncEngine() {
   // Suscripción Realtime si Supabase está activo
   subscribeToRealtime((table, payload) => {
     console.log(`📡 Evento Realtime recibido en ${table}:`, payload);
+    if (table === 'SYSTEM_WIPED') {
+      handleSystemWipeSignal();
+      return;
+    }
     runSyncCycle('realtime-event');
   });
 

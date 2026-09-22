@@ -162,18 +162,18 @@ export async function pushWalletToCloud(wallet) {
  */
 export async function pullWalletsFromCloud() {
   const client = await getSupabase();
-  if (!client) return [];
+  if (!client) return null;
 
   try {
     const { data, error } = await client.from('wallets').select('*');
     if (error) {
       console.error('Error descargando billeteras de Supabase:', error);
-      return [];
+      return null;
     }
     return data || [];
   } catch (e) {
     console.warn('Fallo de red al descargar billeteras:', e);
-    return [];
+    return null;
   }
 }
 
@@ -239,7 +239,7 @@ export async function pullBillsFromCloud(lastSyncTimestamp = null) {
  */
 export async function pullTransactionsFromCloud(lastSyncTimestamp = null) {
   const client = await getSupabase();
-  if (!client) return [];
+  if (!client) return null;
 
   try {
     let query = client.from('transactions').select('*');
@@ -249,14 +249,16 @@ export async function pullTransactionsFromCloud(lastSyncTimestamp = null) {
     const { data, error } = await query;
     if (error) {
       console.error('Error descargando transacciones de Supabase:', error);
-      return [];
+      return null;
     }
     return data || [];
   } catch (e) {
     console.warn('Fallo de red al descargar transacciones:', e);
-    return [];
+    return null;
   }
 }
+
+let activeRealtimeChannel = null;
 
 /**
  * Suscribirse a cambios en tiempo real (Supabase Realtime)
@@ -266,6 +268,10 @@ export async function subscribeToRealtime(onChangeCallback) {
   if (!client) return null;
 
   try {
+    if (activeRealtimeChannel) {
+      try { client.removeChannel(activeRealtimeChannel); } catch (_) {}
+    }
+
     const channel = client
       .channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bills' }, (payload) => {
@@ -280,12 +286,58 @@ export async function subscribeToRealtime(onChangeCallback) {
         console.log('⚡ Cambio en billeteras en tiempo real recibido:', payload);
         onChangeCallback('wallets', payload);
       })
+      .on('broadcast', { event: 'SYSTEM_WIPED' }, (payload) => {
+        console.log('🚨 Alerta Realtime: Reinicio total del sistema ordenado por Administrador');
+        onChangeCallback('SYSTEM_WIPED', payload);
+      })
       .subscribe();
 
+    activeRealtimeChannel = channel;
     return channel;
   } catch (e) {
     console.warn('Error iniciando realtime de Supabase:', e);
     return null;
   }
 }
+
+/**
+ * Emitir señal de reinicio total a todos los celulares y pestañas conectadas
+ */
+export async function broadcastSystemWipe() {
+  const client = await getSupabase();
+  if (!client) return;
+
+  try {
+    if (activeRealtimeChannel) {
+      await activeRealtimeChannel.send({
+        type: 'broadcast',
+        event: 'SYSTEM_WIPED',
+        payload: { timestamp: new Date().toISOString() }
+      });
+      console.log('📡 Broadcast SYSTEM_WIPED transmitido exitosamente por canal activo');
+      await new Promise(r => setTimeout(r, 250));
+    } else {
+      const channel = client.channel('schema-db-changes');
+      await new Promise((resolve) => {
+        channel.subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            await channel.send({
+              type: 'broadcast',
+              event: 'SYSTEM_WIPED',
+              payload: { timestamp: new Date().toISOString() }
+            });
+            console.log('📡 Broadcast SYSTEM_WIPED transmitido tras suscripción');
+            setTimeout(resolve, 250);
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            resolve();
+          }
+        });
+        setTimeout(resolve, 2000);
+      });
+    }
+  } catch (e) {
+    console.warn('Error emitiendo broadcast de reinicio:', e);
+  }
+}
+
 

@@ -13,7 +13,7 @@ import {
   initializeUserWallets,
   clearAllLocalData 
 } from '../db/indexedDb.js';
-import { pushTransactionToCloud, pushBillToCloud, pushWalletToCloud, getSupabase } from '../db/supabase.js';
+import { pushTransactionToCloud, pushBillToCloud, pushWalletToCloud, getSupabase, broadcastSystemWipe } from '../db/supabase.js';
 
 // Subscriptores a cambios de estado contable
 const listeners = new Set();
@@ -395,6 +395,9 @@ export async function wipeAllDataForProduction() {
       console.warn('Advertencia al limpiar datos en Supabase:', e);
     }
   }
+
+  // Notificar a todos los dispositivos móviles y pestañas en tiempo real
+  await broadcastSystemWipe();
 
   notifyChange();
   return true;

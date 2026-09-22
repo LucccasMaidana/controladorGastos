@@ -11,8 +11,9 @@ import { openKeypadModal } from './keypadModal.js';
 import { renderMobileBillsView } from './billsView.js';
 import { renderMobileHistoryView } from './historyView.js';
 import { initAdminApp, setAdminAuthenticated } from '../admin/adminApp.js';
-import { initializeUserWallets } from '../../db/indexedDb.js';
-import { pushWalletToCloud } from '../../db/supabase.js';
+import { initializeUserWallets, clearAllLocalData } from '../../db/indexedDb.js';
+import { pushWalletToCloud, pullWalletsFromCloud } from '../../db/supabase.js';
+import { toggleTheme, updateAllThemeIcons } from '../../services/theme.js';
 
 let currentTab = 'DASHBOARD'; // 'DASHBOARD', 'BILLS', 'HISTORY'
 const STORAGE_USER_KEY = 'libreta_active_user';
@@ -29,19 +30,45 @@ export function setActiveUser(name) {
   }
 }
 
-export function initMobileApp(rootElement) {
+export async function initMobileApp(rootElement) {
   onAccountingChange(() => {
-    if (getActiveUser()) {
+    const user = getActiveUser();
+    if (user) {
       renderCurrentTab(rootElement);
+    } else {
+      renderMobileWelcome(rootElement);
     }
   });
 
   const activeUser = getActiveUser();
-  if (activeUser) {
-    renderMobileAppShell(rootElement, activeUser);
-  } else {
+  if (!activeUser) {
     renderMobileWelcome(rootElement);
+    return;
   }
+
+  // Si hay un usuario guardado pero estamos en línea, verificar de inmediato con Supabase
+  // si el sistema fue puesto a cero o si este usuario fue eliminado.
+  if (navigator.onLine) {
+    try {
+      const remoteWallets = await pullWalletsFromCloud();
+      if (remoteWallets !== null && Array.isArray(remoteWallets)) {
+        const userExistsInCloud = remoteWallets.some(w => 
+          w.user_name && w.user_name.trim().toLowerCase() === activeUser.trim().toLowerCase()
+        );
+        if (remoteWallets.length === 0 || !userExistsInCloud) {
+          console.warn(`Usuario "${activeUser}" no existe en la nube (Puesta a cero o borrado). Regresando a inicio.`);
+          await clearAllLocalData();
+          setActiveUser(null);
+          renderMobileWelcome(rootElement);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Error verificando usuario activo en la nube:', e);
+    }
+  }
+
+  renderMobileAppShell(rootElement, activeUser);
 }
 
 /**
@@ -49,7 +76,14 @@ export function initMobileApp(rootElement) {
  */
 function renderMobileWelcome(rootElement) {
   rootElement.innerHTML = `
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 24px 20px; background: var(--bg-app); color: var(--text-main); text-align: center;">
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 24px 20px; background: var(--bg-app); color: var(--text-main); text-align: center; position: relative;">
+      <!-- Botón Modo Claro / Oscuro -->
+      <div style="position: absolute; top: 16px; right: 16px;">
+        <button type="button" id="btn-theme-welcome" title="Alternar modo claro / oscuro" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); color: var(--text-main); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; box-shadow: var(--shadow-sm);">
+          <span data-theme-icon>🌙</span>
+        </button>
+      </div>
+
       <div style="width: 72px; height: 72px; border-radius: 20px; background: linear-gradient(135deg, var(--color-cash), var(--color-digital)); display: flex; align-items: center; justify-content: center; font-size: 36px; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3); margin-bottom: 16px;">
         📒
       </div>
@@ -128,6 +162,9 @@ function renderMobileWelcome(rootElement) {
     }
   });
 
+  document.getElementById('btn-theme-welcome')?.addEventListener('click', toggleTheme);
+  updateAllThemeIcons();
+
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const rawName = nameInput.value.trim();
@@ -172,6 +209,9 @@ function renderMobileAppShell(rootElement, activeUser) {
         </div>
         
         <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="btn-theme-toggle" id="btn-theme-mobile" title="Alternar modo claro / oscuro" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); color: var(--text-main); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer;">
+            <span data-theme-icon>🌙</span>
+          </button>
           <div class="mobile-sync-icon" id="mobile-header-sync" title="Estado de sincronización">
             🟢
           </div>
@@ -219,6 +259,10 @@ function renderMobileAppShell(rootElement, activeUser) {
       <div id="keypad-modal-root"></div>
     </div>
   `;
+
+  // Toggle de tema
+  document.getElementById('btn-theme-mobile')?.addEventListener('click', toggleTheme);
+  updateAllThemeIcons();
 
   // Cerrar sesión
   document.getElementById('btn-logout-user')?.addEventListener('click', () => {

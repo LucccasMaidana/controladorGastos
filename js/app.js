@@ -9,12 +9,16 @@ import { initializeDefaultWallets, getAllFromStore, getConfig, setConfig } from 
 import { initMobileApp } from './components/mobile/mobileApp.js';
 import { initAdminApp } from './components/admin/adminApp.js';
 import { initSyncEngine, onSyncStateChange, runSyncCycle } from './services/sync.js';
+import { applyTheme, toggleTheme, updateAllThemeIcons } from './services/theme.js';
 
 let currentLayoutMode = 'SPLIT'; // 'MOBILE', 'ADMIN', 'SPLIT'
 
 async function startApp() {
   console.log('🚀 Inicializando Libreta Contable y Gestor de Servicios...');
   try {
+    // 0. Aplicar tema guardado inmediatamente
+    applyTheme();
+
     // 1. Inicializar almacenamiento local y billeteras
     await initializeDefaultWallets();
 
@@ -116,6 +120,10 @@ function setupViewSwitcher() {
 
   // Aplicar layout inicial
   applyLayout('SPLIT');
+
+  // Botón superior de alternancia de tema (Modo Claro / Modo Oscuro)
+  document.getElementById('btn-shell-theme')?.addEventListener('click', toggleTheme);
+  updateAllThemeIcons();
 
   // Botón superior de Supabase abre el modal de configuración en el admin
   document.getElementById('btn-shell-settings')?.addEventListener('click', () => {
