@@ -6,14 +6,14 @@
  * ============================================================================
  */
 
-import { getFinancialSummary, getTransactions, formatCurrency, onAccountingChange } from '../../services/accounting.js';
-import { openKeypadModal } from './keypadModal.js';
-import { renderMobileBillsView } from './billsView.js';
-import { renderMobileHistoryView } from './historyView.js';
-import { initAdminApp, setAdminAuthenticated } from '../admin/adminApp.js';
-import { initializeUserWallets, clearAllLocalData } from '../../db/indexedDb.js';
-import { pushWalletToCloud, pullWalletsFromCloud } from '../../db/supabase.js';
-import { toggleTheme, updateAllThemeIcons } from '../../services/theme.js';
+import { getFinancialSummary, getTransactions, formatCurrency, onAccountingChange } from '../../services/accounting.js?v=11';
+import { openKeypadModal } from './keypadModal.js?v=11';
+import { renderMobileBillsView } from './billsView.js?v=11';
+import { renderMobileHistoryView } from './historyView.js?v=11';
+import { initAdminApp, setAdminAuthenticated } from '../admin/adminApp.js?v=11';
+import { initializeUserWallets, clearAllLocalData } from '../../db/indexedDb.js?v=11';
+import { pushWalletToCloud, pullWalletsFromCloud } from '../../db/supabase.js?v=11';
+import { toggleTheme, updateAllThemeIcons } from '../../services/theme.js?v=11';
 
 let currentTab = 'DASHBOARD'; // 'DASHBOARD', 'BILLS', 'HISTORY'
 const STORAGE_USER_KEY = 'libreta_active_user';

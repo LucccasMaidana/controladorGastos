@@ -5,7 +5,7 @@
  * ============================================================================
  */
 
-import { getBillsList, formatCurrency } from '../../services/accounting.js';
+import { getBillsList, formatCurrency } from '../../services/accounting.js?v=11';
 
 export async function renderMobileBillsView(container) {
   const bills = await getBillsList('ALL');

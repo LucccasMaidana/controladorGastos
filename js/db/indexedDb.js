@@ -6,7 +6,7 @@
  */
 
 const DB_NAME = 'LibretaContableDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbInstance = null;
 
@@ -92,6 +92,21 @@ export async function getDb() {
       // 5. Config Store (para credenciales de Supabase y última fecha de sync)
       if (!db.objectStoreNames.contains('config')) {
         db.createObjectStore('config', { keyPath: 'key' });
+      }
+
+      // Purga automática de datos viejos de versiones 1 o 2 (elimina usuarios fantasma de prueba)
+      if (e.oldVersion > 0 && e.oldVersion < 3) {
+        console.log('🧹 Migración a DB v3: Purgando datos huérfanos de versiones anteriores...');
+        try {
+          if (db.objectStoreNames.contains('wallets')) {
+            tx.objectStore('wallets').clear();
+          }
+          if (db.objectStoreNames.contains('transactions')) {
+            tx.objectStore('transactions').clear();
+          }
+        } catch (err) {
+          console.warn('Advertencia en migración de IndexedDB:', err);
+        }
       }
     };
   });

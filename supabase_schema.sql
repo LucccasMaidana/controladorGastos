@@ -108,21 +108,73 @@ CREATE TRIGGER tr_transactions_updated_at BEFORE UPDATE ON transactions FOR EACH
 DROP TRIGGER IF EXISTS tr_bills_updated_at ON bills;
 CREATE TRIGGER tr_bills_updated_at BEFORE UPDATE ON bills FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 
--- 9. POLÍTICAS DE ROW LEVEL SECURITY
+-- ============================================================================
+-- 9. PROTECCIÓN CONTRA CLIENTES CON CACHÉ DESACTUALIZADO (SCHEMA VERSION GUARD)
+-- Bloquea automáticamente a cualquier cliente con código viejo que intente
+-- insertar o modificar usuarios antiguos o saldos desactualizados.
+-- ============================================================================
+
+-- Agregar columna schema_version a wallets, transactions y bills
+ALTER TABLE public.wallets ADD COLUMN IF NOT EXISTS schema_version INT DEFAULT 2;
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS schema_version INT DEFAULT 2;
+ALTER TABLE public.bills ADD COLUMN IF NOT EXISTS schema_version INT DEFAULT 2;
+
+-- Función de validación de versión de protocolo
+CREATE OR REPLACE FUNCTION validate_client_version()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.schema_version IS NULL OR NEW.schema_version < 2 THEN
+        RAISE EXCEPTION 'CLIENT_OUTDATED: La aplicación en este dispositivo tiene una versión desactualizada en caché. Escritura bloqueada para proteger la base de datos.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS tr_validate_wallet_version ON public.wallets;
+CREATE TRIGGER tr_validate_wallet_version
+    BEFORE INSERT OR UPDATE ON public.wallets
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_client_version();
+
+DROP TRIGGER IF EXISTS tr_validate_transaction_version ON public.transactions;
+CREATE TRIGGER tr_validate_transaction_version
+    BEFORE INSERT OR UPDATE ON public.transactions
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_client_version();
+
+DROP TRIGGER IF EXISTS tr_validate_bill_version ON public.bills;
+CREATE TRIGGER tr_validate_bill_version
+    BEFORE INSERT OR UPDATE ON public.bills
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_client_version();
+
+-- 10. POLÍTICAS DE ROW LEVEL SECURITY (BLOQUEO A NIVEL API)
 ALTER TABLE public.wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bills ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Permitir todo acceso a wallets" ON public.wallets;
-CREATE POLICY "Permitir todo acceso a wallets" ON public.wallets FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Permitir escritura solo a clientes actualizados" ON public.wallets;
+CREATE POLICY "Permitir todo acceso a wallets" ON public.wallets 
+    FOR ALL TO anon, authenticated 
+    USING (true) 
+    WITH CHECK (schema_version >= 2);
 
 DROP POLICY IF EXISTS "Permitir todo acceso a transactions" ON public.transactions;
-CREATE POLICY "Permitir todo acceso a transactions" ON public.transactions FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Permitir escritura solo a clientes actualizados" ON public.transactions;
+CREATE POLICY "Permitir todo acceso a transactions" ON public.transactions 
+    FOR ALL TO anon, authenticated 
+    USING (true) 
+    WITH CHECK (schema_version >= 2);
 
 DROP POLICY IF EXISTS "Permitir todo acceso a bills" ON public.bills;
-CREATE POLICY "Permitir todo acceso a bills" ON public.bills FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Permitir escritura solo a clientes actualizados" ON public.bills;
+CREATE POLICY "Permitir todo acceso a bills" ON public.bills 
+    FOR ALL TO anon, authenticated 
+    USING (true) 
+    WITH CHECK (schema_version >= 2);
 
--- 10. Habilitar Publicación en Realtime de forma segura
+-- 11. Habilitar Publicación en Realtime de forma segura
 DO $$
 BEGIN
   BEGIN

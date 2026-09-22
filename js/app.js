@@ -5,11 +5,11 @@
  * ============================================================================
  */
 
-import { initializeDefaultWallets, getAllFromStore, getConfig, setConfig } from './db/indexedDb.js';
-import { initMobileApp } from './components/mobile/mobileApp.js';
-import { initAdminApp } from './components/admin/adminApp.js';
-import { initSyncEngine, onSyncStateChange, runSyncCycle } from './services/sync.js';
-import { applyTheme, toggleTheme, updateAllThemeIcons } from './services/theme.js';
+import { initializeDefaultWallets, getAllFromStore, getConfig, setConfig, clearAllLocalData } from './db/indexedDb.js?v=11';
+import { initMobileApp } from './components/mobile/mobileApp.js?v=11';
+import { initAdminApp } from './components/admin/adminApp.js?v=11';
+import { initSyncEngine, onSyncStateChange, runSyncCycle } from './services/sync.js?v=11';
+import { applyTheme, toggleTheme, updateAllThemeIcons } from './services/theme.js?v=11';
 
 let currentLayoutMode = 'SPLIT'; // 'MOBILE', 'ADMIN', 'SPLIT'
 
@@ -18,6 +18,15 @@ async function startApp() {
   try {
     // 0. Aplicar tema guardado inmediatamente
     applyTheme();
+
+    // 0.1 Limpieza automática de migración: elimina usuarios y saldos viejos de pruebas en este dispositivo
+    const appVersion = await getConfig('app_client_version');
+    if (appVersion !== 'v3_production') {
+      console.log('🧹 Purgando residuos de versiones anteriores en este dispositivo...');
+      await clearAllLocalData();
+      localStorage.removeItem('libreta_active_user');
+      await setConfig('app_client_version', 'v3_production');
+    }
 
     // 1. Inicializar almacenamiento local y billeteras
     await initializeDefaultWallets();

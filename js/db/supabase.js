@@ -115,6 +115,7 @@ export async function pushTransactionToCloud(tx) {
       category: tx.category,
       note: tx.note,
       is_synced: true,
+      schema_version: 2,
       updated_at: new Date().toISOString()
     });
 
@@ -143,6 +144,7 @@ export async function pushWalletToCloud(wallet) {
       name: wallet.name,
       type: wallet.type,
       current_balance: wallet.current_balance,
+      schema_version: 2,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_name,type' });
 
@@ -196,6 +198,7 @@ export async function pushBillToCloud(bill) {
       paid_digital_amount: bill.paid_digital_amount || 0.00,
       paid_by: bill.paid_by || null,
       created_by: bill.created_by || 'Admin',
+      schema_version: 2,
       updated_at: new Date().toISOString()
     });
 

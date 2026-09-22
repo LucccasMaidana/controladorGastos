@@ -12,8 +12,8 @@ import {
   deleteFromStore, 
   initializeUserWallets,
   clearAllLocalData 
-} from '../db/indexedDb.js';
-import { pushTransactionToCloud, pushBillToCloud, pushWalletToCloud, getSupabase, broadcastSystemWipe } from '../db/supabase.js';
+} from '../db/indexedDb.js?v=11';
+import { pushTransactionToCloud, pushBillToCloud, pushWalletToCloud, getSupabase, broadcastSystemWipe } from '../db/supabase.js?v=11';
 
 // Subscriptores a cambios de estado contable
 const listeners = new Set();

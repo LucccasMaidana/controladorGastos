@@ -5,7 +5,7 @@
  * ============================================================================
  */
 
-import { getAllFromStore, putInStore, deleteFromStore, clearAllLocalData, getConfig, setConfig } from '../db/indexedDb.js';
+import { getAllFromStore, putInStore, deleteFromStore, clearAllLocalData, getConfig, setConfig } from '../db/indexedDb.js?v=11';
 import { 
   getSupabase, 
   pullBillsFromCloud, 
@@ -14,8 +14,8 @@ import {
   pullWalletsFromCloud,
   pullTransactionsFromCloud,
   subscribeToRealtime 
-} from '../db/supabase.js';
-import { notifyAccountingChange } from './accounting.js';
+} from '../db/supabase.js?v=11';
+import { notifyAccountingChange } from './accounting.js?v=11';
 
 let syncState = {
   isOnline: navigator.onLine,
