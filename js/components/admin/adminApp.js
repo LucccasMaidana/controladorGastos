@@ -15,7 +15,8 @@ import {
   roundCurrency,
   onAccountingChange,
   getAllRegisteredUsers,
-  wipeAllDataForProduction 
+  wipeAllDataForProduction,
+  deleteUserCompletely
 } from '../../services/accounting.js';
 import { configureSupabase, testSupabaseConnection } from '../../db/supabase.js';
 import { getConfig } from '../../db/indexedDb.js';
@@ -99,9 +100,14 @@ export async function renderAdminApp(rootElement) {
           🏠 Consolidado Hogar
         </button>
         ${registeredUsers.map(u => `
-          <button type="button" class="admin-tab-btn ${adminActiveUserFilter === u ? 'active' : ''}" data-user-filter="${u}">
-            👤 ${u}
-          </button>
+          <div style="display: inline-flex; align-items: center; background: ${adminActiveUserFilter === u ? 'var(--color-primary)' : 'var(--bg-surface)'}; border-radius: var(--radius-pill); padding-right: 6px; border: 1px solid var(--border-subtle);">
+            <button type="button" class="admin-tab-btn ${adminActiveUserFilter === u ? 'active' : ''}" data-user-filter="${u}" style="border: none; background: transparent;">
+              👤 ${u}
+            </button>
+            <button type="button" class="btn-delete-user" data-delete-user="${u}" title="Eliminar a ${u}" style="background: transparent; border: none; color: ${adminActiveUserFilter === u ? '#fee2e2' : '#ef4444'}; font-size: 11px; font-weight: 800; cursor: pointer; padding: 2px 4px; border-radius: 4px; opacity: 0.8;">
+              ✕
+            </button>
+          </div>
         `).join('')}
       </div>
 
@@ -240,14 +246,37 @@ export async function renderAdminApp(rootElement) {
   document.getElementById('btn-open-create-bill')?.addEventListener('click', () => openCreateBillModal(rootElement));
   document.getElementById('btn-open-settings')?.addEventListener('click', () => openSettingsModal(rootElement));
 
-  // Puesta a cero para producción
+  // Puesta a cero para producción (local y nube)
   document.getElementById('btn-wipe-production')?.addEventListener('click', async () => {
-    const ok = confirm('⚠️ ¿Deseas vaciar todos los cobros, gastos y movimientos para dejar la aplicación lista para producción?\n\nEsto dejará la base de datos totalmente limpia.');
+    const ok = confirm('⚠️ ¿Deseas vaciar todos los usuarios, billeteras, movimientos y facturas para dejar la aplicación 100% limpia?\n\nEsto borrará todos los datos tanto de tu PC como de Supabase en la nube.');
     if (ok) {
+      adminActiveUserFilter = null;
       await wipeAllDataForProduction();
-      alert('✅ Datos vaciados con éxito. La aplicación está en cero y lista para producción.');
-      renderAdminApp(rootElement);
+      alert('✅ Puesta a cero completada con éxito. Todos los usuarios y datos fueron eliminados de la PC y de la nube.');
+      
+      // Si la app móvil está en pantalla (split o móvil), regresarla al onboarding limpio
+      const mobileRoot = document.getElementById('mobile-app-root');
+      if (mobileRoot) {
+        localStorage.removeItem('libreta_active_user');
+        window.location.reload();
+      } else {
+        renderAdminApp(rootElement);
+      }
     }
+  });
+
+  // Eliminar integrante individual (local y nube)
+  document.querySelectorAll('[data-delete-user]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const targetUser = e.currentTarget.dataset.deleteUser;
+      if (confirm(`¿Estás seguro de que deseas eliminar al usuario "${targetUser}" y todos sus movimientos (tanto de la PC como de la nube)?`)) {
+        if (adminActiveUserFilter === targetUser) adminActiveUserFilter = null;
+        await deleteUserCompletely(targetUser);
+        alert(`Usuario "${targetUser}" eliminado con éxito.`);
+        renderAdminApp(rootElement);
+      }
+    });
   });
 
   // Filtro por usuario

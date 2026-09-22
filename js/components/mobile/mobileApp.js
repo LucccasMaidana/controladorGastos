@@ -11,6 +11,8 @@ import { openKeypadModal } from './keypadModal.js';
 import { renderMobileBillsView } from './billsView.js';
 import { renderMobileHistoryView } from './historyView.js';
 import { initAdminApp, setAdminAuthenticated } from '../admin/adminApp.js';
+import { initializeUserWallets } from '../../db/indexedDb.js';
+import { pushWalletToCloud } from '../../db/supabase.js';
 
 let currentTab = 'DASHBOARD'; // 'DASHBOARD', 'BILLS', 'HISTORY'
 const STORAGE_USER_KEY = 'libreta_active_user';
@@ -144,8 +146,11 @@ function renderMobileWelcome(rootElement) {
         adminPassInput.focus();
       }
     } else {
-      // Usuario regular (Mariel Vallejos, Lucas Maidana, etc.)
+      // Usuario regular
       setActiveUser(rawName);
+      initializeUserWallets(rawName).then(wallets => {
+        wallets.forEach(w => pushWalletToCloud(w).catch(() => {}));
+      });
       renderMobileAppShell(rootElement, rawName);
     }
   });
@@ -349,6 +354,11 @@ async function renderCurrentTab(rootElement) {
               ` : recentTx.map(tx => {
                 const isIncome = tx.type === 'INCOME';
                 const isCash = tx.wallet_type === 'CASH';
+                const d = new Date(tx.date);
+                const isToday = d.toDateString() === new Date().toDateString();
+                const dateStr = isToday 
+                  ? `Hoy ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}` 
+                  : d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
                 return `
                   <div class="tx-item">
                     <div class="tx-left">
@@ -357,7 +367,13 @@ async function renderCurrentTab(rootElement) {
                       </div>
                       <div class="tx-info">
                         <h4>${tx.category}</h4>
-                        <p>${isCash ? '💵 Billete' : '💳 Digital'} ${tx.note ? `• ${tx.note}` : ''}</p>
+                        <p>
+                          <span>📅 ${dateStr}</span> • 
+                          <span style="font-weight: 600; color: ${isCash ? 'var(--color-cash-light)' : 'var(--color-digital-light)'};">
+                            ${isCash ? '💵 Billete' : '💳 Digital'}
+                          </span>
+                          ${tx.note ? ` • <em>"${tx.note}"</em>` : ''}
+                        </p>
                       </div>
                     </div>
                     <div class="tx-amount ${isIncome ? 'income' : 'expense'}">

@@ -14,11 +14,13 @@ let currentModalState = {
   amountStr: '0',
   walletType: 'CASH', // 'CASH' o 'DIGITAL'
   category: 'Cobro jornada',
+  date: new Date().toISOString().split('T')[0],
   note: '',
   onCloseCallback: null
 };
 
 export function openKeypadModal(mode = 'INCOME', userName = 'Usuario', onClose = null) {
+  const todayStr = new Date().toISOString().split('T')[0];
   currentModalState = {
     isOpen: true,
     userName: userName || 'Usuario',
@@ -26,6 +28,7 @@ export function openKeypadModal(mode = 'INCOME', userName = 'Usuario', onClose =
     amountStr: '0',
     walletType: 'CASH',
     category: mode === 'INCOME' ? 'Cobro jornada' : 'Supermercado',
+    date: todayStr,
     note: '',
     onCloseCallback: onClose
   };
@@ -88,6 +91,9 @@ async function handleSaveTransaction() {
     return;
   }
 
+  const dateInput = document.getElementById('modal-input-date');
+  const chosenDate = dateInput?.value || currentModalState.date;
+
   const saveBtn = document.getElementById('btn-modal-save');
   if (saveBtn) {
     saveBtn.disabled = true;
@@ -101,7 +107,8 @@ async function handleSaveTransaction() {
         walletType: currentModalState.walletType,
         amount: amount,
         category: currentModalState.category,
-        note: currentModalState.note
+        note: currentModalState.note,
+        date: chosenDate
       });
     } else {
       await registerExpense({
@@ -109,7 +116,8 @@ async function handleSaveTransaction() {
         walletType: currentModalState.walletType,
         amount: amount,
         category: currentModalState.category,
-        note: currentModalState.note
+        note: currentModalState.note,
+        date: chosenDate
       });
     }
 
@@ -169,6 +177,20 @@ export function renderKeypadModal() {
           </button>
         </div>
 
+        <!-- Selector de Fecha del Movimiento -->
+        <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface); border: 1px solid var(--border-subtle); padding: 8px 12px; border-radius: var(--radius-md); margin-bottom: 8px;">
+          <label for="modal-input-date" style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+            <span>📅</span>
+            <span>Fecha:</span>
+          </label>
+          <input 
+            type="date" 
+            id="modal-input-date" 
+            value="${currentModalState.date}" 
+            style="background: var(--bg-input); border: 1px solid var(--border-medium); color: var(--text-main); padding: 6px 10px; border-radius: var(--radius-sm); font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;"
+          />
+        </div>
+
         <!-- Categorías Rápidas -->
         <div class="quick-categories-bar" id="category-chips-bar">
           ${categories.map(cat => `
@@ -219,6 +241,11 @@ export function renderKeypadModal() {
   // Listeners de eventos
   document.getElementById('btn-modal-close').addEventListener('click', closeKeypadModal);
   
+  // Selector de Fecha
+  document.getElementById('modal-input-date')?.addEventListener('change', (e) => {
+    currentModalState.date = e.target.value;
+  });
+
   // Conmutador Billeteras
   document.getElementById('toggle-cash').addEventListener('click', () => {
     currentModalState.walletType = 'CASH';

@@ -13,7 +13,7 @@ import {
   initializeUserWallets,
   clearAllLocalData 
 } from '../db/indexedDb.js';
-import { pushTransactionToCloud, pushBillToCloud, pushWalletToCloud } from '../db/supabase.js';
+import { pushTransactionToCloud, pushBillToCloud, pushWalletToCloud, getSupabase } from '../db/supabase.js';
 
 // Subscriptores a cambios de estado contable
 const listeners = new Set();
@@ -96,7 +96,7 @@ export async function getWalletByType(userName = 'Usuario', walletType = 'CASH')
 /**
  * 1. REGISTRAR INGRESO (POR USUARIO)
  */
-export async function registerIncome({ userName = 'Usuario', walletType, amount, note = '', category = 'Cobro jornada' }) {
+export async function registerIncome({ userName = 'Usuario', walletType, amount, note = '', category = 'Cobro jornada', date = null }) {
   const normUser = (userName || 'Usuario').trim();
   const validAmount = roundCurrency(amount);
   if (validAmount <= 0) throw new Error('El monto debe ser mayor a cero');
@@ -106,10 +106,22 @@ export async function registerIncome({ userName = 'Usuario', walletType, amount,
   wallet.updated_at = new Date().toISOString();
   await putInStore('wallets', wallet);
 
+  let txDate;
+  if (date) {
+    if (typeof date === 'string' && date.length === 10) {
+      const now = new Date();
+      txDate = new Date(`${date}T${now.toTimeString().split(' ')[0]}`).toISOString();
+    } else {
+      txDate = new Date(date).toISOString();
+    }
+  } else {
+    txDate = new Date().toISOString();
+  }
+
   const tx = {
     id: generateUUID(),
     user_name: normUser,
-    date: new Date().toISOString(),
+    date: txDate,
     amount: validAmount,
     type: 'INCOME',
     wallet_type: walletType,
@@ -135,7 +147,7 @@ export async function registerIncome({ userName = 'Usuario', walletType, amount,
 /**
  * 2. REGISTRAR EGRESO (POR USUARIO)
  */
-export async function registerExpense({ userName = 'Usuario', walletType, amount, note = '', category = 'Gasto vario' }) {
+export async function registerExpense({ userName = 'Usuario', walletType, amount, note = '', category = 'Gasto vario', date = null }) {
   const normUser = (userName || 'Usuario').trim();
   const validAmount = roundCurrency(amount);
   if (validAmount <= 0) throw new Error('El monto debe ser mayor a cero');
@@ -145,10 +157,22 @@ export async function registerExpense({ userName = 'Usuario', walletType, amount
   wallet.updated_at = new Date().toISOString();
   await putInStore('wallets', wallet);
 
+  let txDate;
+  if (date) {
+    if (typeof date === 'string' && date.length === 10) {
+      const now = new Date();
+      txDate = new Date(`${date}T${now.toTimeString().split(' ')[0]}`).toISOString();
+    } else {
+      txDate = new Date(date).toISOString();
+    }
+  } else {
+    txDate = new Date().toISOString();
+  }
+
   const tx = {
     id: generateUUID(),
     user_name: normUser,
-    date: new Date().toISOString(),
+    date: txDate,
     amount: validAmount,
     type: 'EXPENSE',
     wallet_type: walletType,
@@ -183,10 +207,7 @@ export async function getFinancialSummary(userName = null) {
 
   if (userName) {
     const normUser = userName.trim();
-    const userWallets = await initializeUserWallets(normUser);
-    userWallets.forEach(w => pushWalletToCloud(w).catch(() => {}));
-    const allUpdatedWallets = await getAllFromStore('wallets');
-    const matchedWallets = allUpdatedWallets.filter(w => w.user_name && w.user_name.toLowerCase() === normUser.toLowerCase());
+    const matchedWallets = wallets.filter(w => w.user_name && w.user_name.toLowerCase() === normUser.toLowerCase());
     const cash = matchedWallets.find(w => w.type === 'CASH')?.current_balance || 0;
     const digital = matchedWallets.find(w => w.type === 'DIGITAL')?.current_balance || 0;
 
@@ -356,12 +377,64 @@ export async function getBillsList(statusFilter = 'ALL') {
 }
 
 /**
- * 7. PUESTA A CERO PARA PRODUCCIÓN (VACIAR BASE DE DATOS)
+ * 7. PUESTA A CERO PARA PRODUCCIÓN (VACIAR BASE DE DATOS LOCAL Y NUBE)
  */
 export async function wipeAllDataForProduction() {
   await clearAllLocalData();
   localStorage.removeItem('libreta_active_user');
-  sessionStorage.removeItem('admin_session_auth');
+
+  // Limpiar completamente también las tablas remotas de Supabase
+  const client = await getSupabase();
+  if (client) {
+    try {
+      await client.from('transactions').delete().neq('amount', -999999);
+      await client.from('bills').delete().neq('amount', -999999);
+      await client.from('wallets').delete().neq('current_balance', -999999);
+      console.log('☁️ Base de datos en la nube (Supabase) vaciada por completo');
+    } catch (e) {
+      console.warn('Advertencia al limpiar datos en Supabase:', e);
+    }
+  }
+
   notifyChange();
   return true;
+}
+
+/**
+ * 8. ELIMINAR UN INTEGRANTE INDIVIDUAL ESPECÍFICO (LOCAL Y NUBE)
+ */
+export async function deleteUserCompletely(userName) {
+  if (!userName) return;
+  const norm = userName.trim();
+  const normLower = norm.toLowerCase();
+
+  const wallets = await getAllFromStore('wallets');
+  for (const w of wallets) {
+    if (w.user_name && w.user_name.toLowerCase() === normLower) {
+      await deleteFromStore('wallets', w.id);
+    }
+  }
+
+  const txs = await getAllFromStore('transactions');
+  for (const t of txs) {
+    if (t.user_name && t.user_name.toLowerCase() === normLower) {
+      await deleteFromStore('transactions', t.id);
+    }
+  }
+
+  const client = await getSupabase();
+  if (client) {
+    try {
+      await client.from('wallets').delete().ilike('user_name', norm);
+      await client.from('transactions').delete().ilike('user_name', norm);
+    } catch (e) {
+      console.warn('Error borrando usuario en Supabase:', e);
+    }
+  }
+
+  if (localStorage.getItem('libreta_active_user')?.toLowerCase() === normLower) {
+    localStorage.removeItem('libreta_active_user');
+  }
+
+  notifyChange();
 }
