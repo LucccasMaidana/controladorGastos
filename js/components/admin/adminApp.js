@@ -17,10 +17,10 @@ import {
   getAllRegisteredUsers,
   wipeAllDataForProduction,
   deleteUserCompletely
-} from '../../services/accounting.js?v=11';
-import { configureSupabase, testSupabaseConnection } from '../../db/supabase.js?v=11';
-import { getConfig } from '../../db/indexedDb.js?v=11';
-import { toggleTheme, updateAllThemeIcons } from '../../services/theme.js?v=11';
+} from '../../services/accounting.js?v=12';
+import { configureSupabase, testSupabaseConnection } from '../../db/supabase.js?v=12';
+import { getConfig } from '../../db/indexedDb.js?v=12';
+import { toggleTheme, updateAllThemeIcons } from '../../services/theme.js?v=12';
 
 const ADMIN_USER = 'Admin';
 const ADMIN_PASS = 'JjunieBronce1';

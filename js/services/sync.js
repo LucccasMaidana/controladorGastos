@@ -5,7 +5,7 @@
  * ============================================================================
  */
 
-import { getAllFromStore, putInStore, deleteFromStore, clearAllLocalData, getConfig, setConfig } from '../db/indexedDb.js?v=11';
+import { getAllFromStore, putInStore, deleteFromStore, clearAllLocalData, getConfig, setConfig } from '../db/indexedDb.js?v=12';
 import { 
   getSupabase, 
   pullBillsFromCloud, 
@@ -14,8 +14,8 @@ import {
   pullWalletsFromCloud,
   pullTransactionsFromCloud,
   subscribeToRealtime 
-} from '../db/supabase.js?v=11';
-import { notifyAccountingChange } from './accounting.js?v=11';
+} from '../db/supabase.js?v=12';
+import { notifyAccountingChange } from './accounting.js?v=12';
 
 let syncState = {
   isOnline: navigator.onLine,
@@ -169,7 +169,9 @@ export async function runSyncCycle(triggerReason = 'manual') {
     }
 
     // 2. PUSH: Asegurar que la billetera del usuario activo local esté en la nube
-    if (activeUser && activeUser.toLowerCase() !== 'admin') {
+    // IMPORTANTE: NUNCA hacer push de billeteras si el ciclo se disparó por un evento realtime
+    // para cortar de raíz el bucle infinito de eco.
+    if (triggerReason !== 'realtime-event' && activeUser && activeUser.toLowerCase() !== 'admin') {
       for (const w of localWallets) {
         if (w.user_name && w.user_name.toLowerCase() === activeUser.toLowerCase()) {
           await pushWalletToCloud(w);
@@ -186,9 +188,17 @@ export async function runSyncCycle(triggerReason = 'manual') {
         if (!local) {
           await putInStore('wallets', rw);
           hasChanges = true;
-        } else if (new Date(rw.updated_at) > new Date(local.updated_at || 0)) {
-          await putInStore('wallets', rw);
-          hasChanges = true;
+        } else {
+          const localTime = new Date(local.updated_at || 0).getTime();
+          const remoteTime = new Date(rw.updated_at || 0).getTime();
+          // Si en la nube tiene $0 pero localmente hay saldo registrado mayor a 0, NO pisar el saldo local con 0
+          if (rw.current_balance === 0 && (local.current_balance || 0) > 0) {
+            rw.current_balance = local.current_balance;
+            pushWalletToCloud(local).catch(() => {});
+          } else if (remoteTime > localTime) {
+            await putInStore('wallets', rw);
+            hasChanges = true;
+          }
         }
       }
     }
@@ -206,6 +216,31 @@ export async function runSyncCycle(triggerReason = 'manual') {
         }
       }
       await setConfig('last_tx_sync_timestamp', new Date().toISOString());
+    }
+
+    // Reconciliación automática: calcular saldos exactos a partir de las transacciones
+    if (activeUser && activeUser.toLowerCase() !== 'admin') {
+      const norm = activeUser.trim().toLowerCase();
+      const updatedTxs = await getAllFromStore('transactions');
+      const userTxs = updatedTxs.filter(t => t.user_name && t.user_name.toLowerCase() === norm);
+      if (userTxs.length > 0) {
+        const calcCash = Math.round(userTxs.filter(t => t.wallet_type === 'CASH').reduce((sum, t) => sum + (t.type === 'INCOME' ? t.amount : -t.amount), 0) * 100) / 100;
+        const calcDigital = Math.round(userTxs.filter(t => t.wallet_type === 'DIGITAL').reduce((sum, t) => sum + (t.type === 'INCOME' ? t.amount : -t.amount), 0) * 100) / 100;
+
+        const currentWallets = await getAllFromStore('wallets');
+        for (const w of currentWallets) {
+          if (w.user_name && w.user_name.toLowerCase() === norm) {
+            const expected = w.type === 'CASH' ? calcCash : calcDigital;
+            if (w.current_balance !== expected) {
+              w.current_balance = expected;
+              w.updated_at = new Date().toISOString();
+              await putInStore('wallets', w);
+              pushWalletToCloud(w).catch(() => {});
+              hasChanges = true;
+            }
+          }
+        }
+      }
     }
 
     // 5. PULL: Descargar facturas actualizadas desde la nube
@@ -284,6 +319,7 @@ export function initSyncEngine() {
     updateSyncState({ isOnline: false, isSyncing: false });
   });
 
+  let realtimeDebounceTimer = null;
   // Suscripción Realtime si Supabase está activo
   subscribeToRealtime((table, payload) => {
     console.log(`📡 Evento Realtime recibido en ${table}:`, payload);
@@ -291,7 +327,11 @@ export function initSyncEngine() {
       handleSystemWipeSignal();
       return;
     }
-    runSyncCycle('realtime-event');
+    // Debounce de 800ms para agrupar ráfagas de eventos y evitar temblores en pantalla
+    if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
+    realtimeDebounceTimer = setTimeout(() => {
+      runSyncCycle('realtime-event');
+    }, 800);
   });
 
   // Sincronización oportunista inicial

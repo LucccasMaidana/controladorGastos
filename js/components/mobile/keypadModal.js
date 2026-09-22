@@ -5,7 +5,7 @@
  * ============================================================================
  */
 
-import { registerIncome, registerExpense, formatCurrency } from '../../services/accounting.js?v=11';
+import { registerIncome, registerExpense, formatCurrency } from '../../services/accounting.js?v=12';
 
 let currentModalState = {
   isOpen: false,

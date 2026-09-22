@@ -12,8 +12,8 @@ import {
   deleteFromStore, 
   initializeUserWallets,
   clearAllLocalData 
-} from '../db/indexedDb.js?v=11';
-import { pushTransactionToCloud, pushBillToCloud, pushWalletToCloud, getSupabase, broadcastSystemWipe } from '../db/supabase.js?v=11';
+} from '../db/indexedDb.js?v=12';
+import { pushTransactionToCloud, pushBillToCloud, pushWalletToCloud, getSupabase, broadcastSystemWipe } from '../db/supabase.js?v=12';
 
 // Subscriptores a cambios de estado contable
 const listeners = new Set();
@@ -72,8 +72,7 @@ export function generateUUID() {
  */
 export async function getWalletByType(userName = 'Usuario', walletType = 'CASH') {
   const normUser = (userName || 'Usuario').trim();
-  const userWallets = await initializeUserWallets(normUser);
-  userWallets.forEach(w => pushWalletToCloud(w).catch(() => {}));
+  await initializeUserWallets(normUser);
   const wallets = await getAllFromStore('wallets');
   let wallet = wallets.find(w => 
     w.user_name && w.user_name.toLowerCase() === normUser.toLowerCase() && w.type === walletType
@@ -81,7 +80,7 @@ export async function getWalletByType(userName = 'Usuario', walletType = 'CASH')
 
   if (!wallet) {
     wallet = {
-      id: `${walletType.toLowerCase()}_${normUser.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+      id: generateUUID(),
       user_name: normUser,
       name: walletType === 'CASH' ? 'Billetes en Mano' : 'Cuenta Digital / MP',
       type: walletType,
@@ -132,13 +131,14 @@ export async function registerIncome({ userName = 'Usuario', walletType, amount,
 
   await putInStore('transactions', tx);
   
-  // Intento de push a la nube silencioso
+  // Enviar de inmediato a la nube tanto la transacción como la billetera con el saldo nuevo
   pushTransactionToCloud(tx).then(synced => {
     if (synced) {
       tx.is_synced = true;
       putInStore('transactions', tx);
     }
   });
+  pushWalletToCloud(wallet).catch(e => console.warn('Error subiendo billetera tras cobro:', e));
 
   notifyChange();
   return tx;
@@ -183,13 +183,14 @@ export async function registerExpense({ userName = 'Usuario', walletType, amount
 
   await putInStore('transactions', tx);
 
-  // Intento de push silencioso
+  // Enviar de inmediato a la nube tanto la transacción como la billetera con el saldo nuevo
   pushTransactionToCloud(tx).then(synced => {
     if (synced) {
       tx.is_synced = true;
       putInStore('transactions', tx);
     }
   });
+  pushWalletToCloud(wallet).catch(e => console.warn('Error subiendo billetera tras gasto:', e));
 
   notifyChange();
   return tx;
@@ -208,8 +209,36 @@ export async function getFinancialSummary(userName = null) {
   if (userName) {
     const normUser = userName.trim();
     const matchedWallets = wallets.filter(w => w.user_name && w.user_name.toLowerCase() === normUser.toLowerCase());
-    const cash = matchedWallets.find(w => w.type === 'CASH')?.current_balance || 0;
-    const digital = matchedWallets.find(w => w.type === 'DIGITAL')?.current_balance || 0;
+    let cash = matchedWallets.find(w => w.type === 'CASH')?.current_balance || 0;
+    let digital = matchedWallets.find(w => w.type === 'DIGITAL')?.current_balance || 0;
+
+    // RECONCILIACIÓN INTELIGENTE:
+    // Si hay transacciones registradas para este usuario, asegurar que el saldo coincida con los movimientos reales
+    const allTxs = await getAllFromStore('transactions');
+    const userTxs = allTxs.filter(t => t.user_name && t.user_name.toLowerCase() === normUser.toLowerCase());
+    if (userTxs.length > 0) {
+      const calcCash = roundCurrency(userTxs.filter(t => t.wallet_type === 'CASH').reduce((acc, t) => acc + (t.type === 'INCOME' ? t.amount : -t.amount), 0));
+      const calcDigital = roundCurrency(userTxs.filter(t => t.wallet_type === 'DIGITAL').reduce((acc, t) => acc + (t.type === 'INCOME' ? t.amount : -t.amount), 0));
+      
+      if (cash !== calcCash) {
+        cash = calcCash;
+        const cw = matchedWallets.find(w => w.type === 'CASH');
+        if (cw) {
+          cw.current_balance = cash;
+          cw.updated_at = new Date().toISOString();
+          putInStore('wallets', cw).then(() => pushWalletToCloud(cw).catch(() => {}));
+        }
+      }
+      if (digital !== calcDigital) {
+        digital = calcDigital;
+        const dw = matchedWallets.find(w => w.type === 'DIGITAL');
+        if (dw) {
+          dw.current_balance = digital;
+          dw.updated_at = new Date().toISOString();
+          putInStore('wallets', dw).then(() => pushWalletToCloud(dw).catch(() => {}));
+        }
+      }
+    }
 
     return {
       userName,
@@ -223,8 +252,15 @@ export async function getFinancialSummary(userName = null) {
     };
   } else {
     // Total consolidado del hogar
-    const totalCash = roundCurrency(wallets.filter(w => w.type === 'CASH').reduce((a, b) => a + (Number(b.current_balance) || 0), 0));
-    const totalDigital = roundCurrency(wallets.filter(w => w.type === 'DIGITAL').reduce((a, b) => a + (Number(b.current_balance) || 0), 0));
+    let totalCash = roundCurrency(wallets.filter(w => w.type === 'CASH').reduce((a, b) => a + (Number(b.current_balance) || 0), 0));
+    let totalDigital = roundCurrency(wallets.filter(w => w.type === 'DIGITAL').reduce((a, b) => a + (Number(b.current_balance) || 0), 0));
+
+    // Si las billeteras están vacías pero hay transacciones, reconciliar
+    const allTxs = await getAllFromStore('transactions');
+    if (allTxs.length > 0 && totalCash === 0 && totalDigital === 0) {
+      totalCash = roundCurrency(allTxs.filter(t => t.wallet_type === 'CASH').reduce((acc, t) => acc + (t.type === 'INCOME' ? t.amount : -t.amount), 0));
+      totalDigital = roundCurrency(allTxs.filter(t => t.wallet_type === 'DIGITAL').reduce((acc, t) => acc + (t.type === 'INCOME' ? t.amount : -t.amount), 0));
+    }
 
     return {
       userName: 'Hogar',

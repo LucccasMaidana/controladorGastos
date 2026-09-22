@@ -5,7 +5,7 @@
  * ============================================================================
  */
 
-import { getTransactions, formatCurrency } from '../../services/accounting.js?v=11';
+import { getTransactions, formatCurrency } from '../../services/accounting.js?v=12';
 
 let activeHistoryFilter = 'ALL'; // 'ALL', 'CASH', 'DIGITAL'
 
