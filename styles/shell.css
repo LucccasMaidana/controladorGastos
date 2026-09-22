@@ -271,3 +271,26 @@ body.standalone-mobile .phone-status-bar {
 body.standalone-mobile #admin-viewport-container {
   display: none !important;
 }
+
+/* Modo standalone limpio para PC de Lucas (?mode=admin) */
+body.standalone-admin #dev-shell-header {
+  display: none !important;
+}
+
+body.standalone-admin #mobile-viewport-container {
+  display: none !important;
+}
+
+body.standalone-admin #workspace-canvas {
+  padding: 24px 32px !important;
+  max-width: 1400px !important;
+  margin: 0 auto !important;
+  display: block !important;
+}
+
+body.standalone-admin #admin-viewport-container {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+

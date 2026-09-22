@@ -38,9 +38,14 @@ async function startApp() {
     // 5. Configurar selector de vistas en el Shell de Localhost
     setupViewSwitcher();
 
-    // 5.1 Si viene con ?mode=mobile o en celular directo, activar modo standalone limpio
+    // 5.1 Si viene con ?mode=admin o ?mode=mobile, o si se abre directamente en pantalla de celular
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('mode') === 'mobile' || urlParams.has('mariel')) {
+    const mode = (urlParams.get('mode') || urlParams.get('view') || '').toLowerCase();
+    const isMobileDevice = window.innerWidth <= 768;
+
+    if (mode === 'admin') {
+      document.body.classList.add('standalone-admin');
+    } else if (mode === 'mobile' || urlParams.has('mariel') || (isMobileDevice && !mode)) {
       document.body.classList.add('standalone-mobile');
     }
 
