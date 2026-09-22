@@ -12,16 +12,26 @@ let supabaseClient = null;
 /**
  * Obtener o inicializar la instancia de Supabase
  */
+export function sanitizeSupabaseUrl(url) {
+  if (!url) return '';
+  let clean = url.trim();
+  clean = clean.replace(/\/rest\/v1\/?$/i, '');
+  clean = clean.replace(/\/+$/, '');
+  return clean;
+}
+
 export async function getSupabase() {
   if (supabaseClient) return supabaseClient;
 
   // Cargar credenciales guardadas en la configuración local
-  const url = await getConfig('supabase_url');
+  const rawUrl = await getConfig('supabase_url');
   const anonKey = await getConfig('supabase_anon_key');
 
-  if (!url || !anonKey) {
+  if (!rawUrl || !anonKey) {
     return null; // Sin configurar todavía
   }
+
+  const url = sanitizeSupabaseUrl(rawUrl);
 
   // Verificar si la librería global de Supabase está cargada (desde CDN o bundle)
   const createClientFn = window.supabase?.createClient;
@@ -31,7 +41,7 @@ export async function getSupabase() {
   }
 
   try {
-    supabaseClient = createClientFn(url, anonKey, {
+    supabaseClient = createClientFn(url, anonKey.trim(), {
       auth: { persistSession: false }
     });
     return supabaseClient;
@@ -45,10 +55,12 @@ export async function getSupabase() {
  * Guardar nuevas credenciales y reconfigurar cliente
  */
 export async function configureSupabase(url, anonKey) {
-  await setConfig('supabase_url', url.trim());
-  await setConfig('supabase_anon_key', anonKey.trim());
+  const cleanUrl = sanitizeSupabaseUrl(url);
+  const cleanKey = anonKey.trim();
+  await setConfig('supabase_url', cleanUrl);
+  await setConfig('supabase_anon_key', cleanKey);
   supabaseClient = null; // Reset para recrear
-  return await testSupabaseConnection(url, anonKey);
+  return await testSupabaseConnection(cleanUrl, cleanKey);
 }
 
 /**
@@ -61,7 +73,8 @@ export async function testSupabaseConnection(url, anonKey) {
   }
 
   try {
-    const testClient = createClientFn(url, anonKey);
+    const cleanUrl = sanitizeSupabaseUrl(url);
+    const testClient = createClientFn(cleanUrl, anonKey.trim());
     // Intentar leer la tabla bills o wallets
     const { data, error } = await testClient.from('wallets').select('id').limit(1);
 
