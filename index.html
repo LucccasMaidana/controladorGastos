@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Libreta Contable y Gestor de Servicios</title>
+  
+  <!-- Tipografía moderna y de alto contraste (Google Fonts) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@600;800&display=swap" rel="stylesheet">
+
+  <!-- Estilos del Sistema -->
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/shell.css" />
+  <link rel="stylesheet" href="styles/mobile.css" />
+  <link rel="stylesheet" href="styles/admin.css" />
+
+  <!-- SDK Oficial de Supabase desde CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- Barra Superior de Control de Desarrollo (Localhost) -->
+  <header id="dev-shell-header">
+    <div class="shell-brand">
+      <div class="shell-logo-badge">LC</div>
+      <div class="shell-title-group">
+        <h1>Libreta Contable &amp; Servicios</h1>
+        <p>Sistema Offline-First • Mamá (Móvil) + Lucas (PC)</p>
+      </div>
+    </div>
+
+    <!-- Selector de Vistas de Desarrollo -->
+    <div class="shell-view-controls">
+      <button type="button" class="view-btn" id="btn-view-mobile">
+        <span>📱</span>
+        <span>Celular Mamá</span>
+      </button>
+      <button type="button" class="view-btn" id="btn-view-admin">
+        <span>💻</span>
+        <span>Panel PC Lucas</span>
+      </button>
+      <button type="button" class="view-btn active" id="btn-view-split">
+        <span>🔀</span>
+        <span>Vista Dividida</span>
+      </button>
+    </div>
+
+    <!-- Indicador de Red y Estado de Sincronización -->
+    <div class="shell-right-actions">
+      <div class="sync-pill" id="shell-sync-pill" title="Estado de sincronización">
+        <span class="sync-indicator-dot"></span>
+        <span id="sync-text-status">Conectado</span>
+      </div>
+      <button type="button" class="shell-btn-settings" id="btn-shell-settings">
+        <span>☁️</span>
+        <span>Supabase</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Lienzo Principal Dinámico -->
+  <main id="workspace-canvas" class="layout-split">
+    <!-- Contenedor Móvil (Marco de Celular para Mamá) -->
+    <div id="mobile-viewport-container" class="phone-mockup-wrapper">
+      <div class="phone-mockup-frame">
+        <div class="phone-status-bar">
+          <span id="phone-clock">12:00</span>
+          <div class="phone-notch"></div>
+          <span>📶 🔋 100%</span>
+        </div>
+        <div class="phone-screen" id="mobile-app-root">
+          <!-- Aplicación móvil inyectada aquí -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Contenedor Panel Administrador Web (PC) -->
+    <div id="admin-viewport-container" class="layout-admin-only">
+      <div id="admin-app-root">
+        <!-- Panel Administrador Web inyectado aquí -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Script Principal de la Aplicación -->
+  <script type="module" src="js/app.js?v=2"></script>
+</body>
+</html>

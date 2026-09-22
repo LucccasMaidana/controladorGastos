@@ -1,0 +1,700 @@
+/* ==========================================================================
+   MOBILE INTERFACE (APP PARA MAMÁ - ACCESIBILIDAD MÁXIMA)
+   Diseño de alto contraste, tipografía grande, botones táctiles gigantes
+   ========================================================================== */
+
+.mobile-app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--bg-app);
+  color: var(--text-main);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Header */
+.mobile-header {
+  padding: 14px 18px 10px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.mobile-user-greeting {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-user-greeting .app-name {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.mobile-user-greeting .user-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.mobile-sync-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  border: 1px solid var(--border-subtle);
+}
+
+/* Scrollable Content */
+.mobile-content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 16px 120px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ==========================================================================
+   BALANCE CARDS (ALTO CONTRASTE)
+   ========================================================================== */
+.balance-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Tarjeta Verde: Efectivo / Billetes en mano */
+.balance-card {
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.balance-card:active {
+  transform: scale(0.985);
+}
+
+.card-cash {
+  background: linear-gradient(135deg, #059669 0%, #047857 60%, #064e3b 100%);
+  color: #ffffff;
+  box-shadow: var(--shadow-glow-cash);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+/* Tarjeta Azul/Violeta: Digital */
+.card-digital {
+  background: linear-gradient(135deg, #4f46e5 0%, #3730a3 60%, #312e81 100%);
+  color: #ffffff;
+  box-shadow: var(--shadow-glow-digital);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+}
+
+.balance-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.balance-card-label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  opacity: 0.95;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.balance-card-icon {
+  font-size: 20px;
+}
+
+.balance-card-amount {
+  font-family: var(--font-sans);
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.balance-card-footer {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.85;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ==========================================================================
+   ALERT CARD: FACTURAS PENDIENTES
+   ========================================================================== */
+.alert-bills-card {
+  background: linear-gradient(135deg, #78350f 0%, #451a03 100%);
+  border: 1.5px solid #f59e0b;
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  animation: pulseAlert 3s infinite ease-in-out;
+  transition: transform var(--transition-fast);
+}
+
+.alert-bills-card:active {
+  transform: scale(0.98);
+}
+
+@keyframes pulseAlert {
+  0%, 100% { border-color: #f59e0b; }
+  50% { border-color: #fde68a; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4); }
+}
+
+.alert-left-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alert-icon-badge {
+  background: #f59e0b;
+  color: #000;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.alert-text-group h3 {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fde68a;
+  text-transform: uppercase;
+}
+
+.alert-text-group .alert-amount {
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.alert-text-group .alert-count {
+  font-size: 11px;
+  color: #fef3c7;
+  font-weight: 500;
+}
+
+.alert-chevron {
+  color: #fde68a;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+/* Banner de tranquilidad cuando no hay facturas */
+.all-clear-banner {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px dashed rgba(16, 185, 129, 0.3);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-cash-light);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   BALANCE NETO REAL (RESUMEN)
+   ========================================================================== */
+.real-net-summary {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.real-net-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.real-net-amount {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+/* ==========================================================================
+   MINI HISTORIAL RECIENTE EN DASHBOARD
+   ========================================================================== */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.section-link-btn {
+  background: none;
+  border: none;
+  color: #38bdf8;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.recent-transactions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tx-card-mini {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tx-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tx-icon-pill {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+}
+
+.tx-icon-pill.income {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-cash-light);
+}
+
+.tx-icon-pill.expense {
+  background: rgba(225, 29, 72, 0.15);
+  color: var(--color-danger-light);
+}
+
+.tx-info h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.tx-info p {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tx-amount {
+  font-size: 15px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.tx-amount.income {
+  color: var(--color-cash-light);
+}
+
+.tx-amount.expense {
+  color: var(--color-danger-light);
+}
+
+/* ==========================================================================
+   BOTONES DE ACCIÓN RÁPIDA (GIGANTES Y FIJADOS ABAJO)
+   ========================================================================== */
+.mobile-fixed-bottom-actions {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px 24px 16px;
+  background: linear-gradient(to top, rgba(15, 23, 42, 1) 70%, rgba(15, 23, 42, 0) 100%);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  z-index: 50;
+}
+
+.btn-giant-action {
+  height: 64px;
+  border-radius: var(--radius-lg);
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  transition: transform var(--transition-fast), filter var(--transition-fast);
+}
+
+.btn-giant-action:active {
+  transform: scale(0.96);
+  filter: brightness(0.9);
+}
+
+.btn-income-action {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 1.5px solid rgba(52, 211, 153, 0.4);
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+}
+
+.btn-expense-action {
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+  border: 1.5px solid rgba(251, 113, 133, 0.4);
+  box-shadow: 0 6px 18px rgba(225, 29, 72, 0.35);
+}
+
+/* ==========================================================================
+   NAVIGATION BAR (PESTAÑAS INFERIORES)
+   ========================================================================== */
+.mobile-nav-bar {
+  display: flex;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
+  padding: 6px 12px;
+  justify-content: space-around;
+  z-index: 40;
+}
+
+.nav-tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.nav-tab-btn.active {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.nav-tab-btn .tab-icon {
+  font-size: 18px;
+}
+
+/* ==========================================================================
+   MODAL DE CARGA RÁPIDA CON TECLADO NUMÉRICO INTEGRADO
+   ========================================================================== */
+.keypad-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.keypad-modal-content {
+  background: var(--bg-surface);
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+  padding: 16px 20px 24px 20px;
+  border-top: 2px solid var(--border-medium);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 95%;
+  overflow-y: auto;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.modal-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title-chip {
+  font-size: 15px;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-title-chip.income {
+  background: var(--color-cash-bg);
+  color: var(--color-cash-dark);
+}
+
+.modal-title-chip.expense {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-dark);
+}
+
+.modal-btn-close {
+  background: var(--bg-surface-elevated);
+  border: none;
+  color: var(--text-muted);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Pantalla del Monto */
+.modal-amount-display {
+  background: var(--bg-input);
+  border: 1.5px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  padding: 12px 18px;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+}
+
+.amount-currency-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.amount-digits {
+  font-family: var(--font-sans);
+  font-size: 40px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  min-height: 48px;
+}
+
+/* Selector Conmutador: [ Billete ] / [ Digital ] */
+.wallet-toggle-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: var(--bg-input);
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+}
+
+.wallet-toggle-btn {
+  border: none;
+  background: transparent;
+  padding: 10px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all var(--transition-fast);
+}
+
+.wallet-toggle-btn.active.cash {
+  background: var(--color-cash);
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(5, 150, 105, 0.4);
+}
+
+.wallet-toggle-btn.active.digital {
+  background: var(--color-digital);
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(79, 70, 229, 0.4);
+}
+
+/* Category Quick Chips */
+.quick-categories-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: none;
+}
+
+.quick-categories-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.category-chip {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.category-chip.active {
+  background: #38bdf8;
+  color: #0f172a;
+  font-weight: 800;
+  border-color: #38bdf8;
+}
+
+/* Campo de Nota Simple */
+.note-input-field {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  outline: none;
+}
+
+.note-input-field:focus {
+  border-color: var(--border-focus);
+}
+
+/* TECLADO NUMÉRICO TÁCTIL GIGANTE */
+.numeric-keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.keypad-key {
+  height: 56px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.keypad-key:active {
+  background: var(--border-medium);
+  transform: scale(0.95);
+}
+
+.keypad-key.action-backspace {
+  color: #f87171;
+  font-size: 22px;
+}
+
+.keypad-key.action-clear {
+  color: #fbbf24;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* Botón Guardar Gigante */
+.btn-save-transaction {
+  height: 60px;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: 19px;
+  font-weight: 800;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  transition: transform var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btn-save-transaction:active {
+  transform: scale(0.97);
+}
+
+.btn-save-transaction.income {
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+}
+
+.btn-save-transaction.expense {
+  background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%);
+}
