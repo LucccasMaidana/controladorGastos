@@ -9,7 +9,6 @@ import { initializeDefaultWallets, getAllFromStore, getConfig, setConfig } from 
 import { initMobileApp } from './components/mobile/mobileApp.js';
 import { initAdminApp } from './components/admin/adminApp.js';
 import { initSyncEngine, onSyncStateChange, runSyncCycle } from './services/sync.js';
-import { createBill, registerIncome } from './services/accounting.js';
 
 let currentLayoutMode = 'SPLIT'; // 'MOBILE', 'ADMIN', 'SPLIT'
 
@@ -26,10 +25,7 @@ async function startApp() {
       await setConfig('supabase_anon_key', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53dmxmb2tlZmlhcHNscWVnZ2NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMDA2OTUsImV4cCI6MjEwNTY3NjY5NX0.S5n5qbUm6ZLhAnpehH3B2nlF9d6wk1fKGiv-8Ttrfdk');
     }
 
-    // 2. Si la base está totalmente nueva, sembrar 2 ejemplos iniciales para que Lucas vea cómo luce
-    await seedInitialDataIfEmpty();
-
-    // 3. Montar componentes de vistas
+    // 2. Montar componentes de vistas
     const mobileRoot = document.getElementById('mobile-app-root');
     const adminRoot = document.getElementById('admin-app-root');
 
@@ -71,50 +67,6 @@ if (document.readyState === 'loading') {
   startApp();
 }
 
-/**
- * Sembrar datos iniciales demostrativos si es la primera apertura
- */
-async function seedInitialDataIfEmpty() {
-  const bills = await getAllFromStore('bills');
-  const transactions = await getAllFromStore('transactions');
-
-  if (bills.length === 0 && transactions.length === 0) {
-    console.log('🌱 Sembrando datos demostrativos iniciales...');
-    
-    // Registrar un cobro inicial para Mariel
-    await registerIncome({
-      walletType: 'CASH',
-      amount: 25000,
-      category: 'Cobro jornada',
-      note: 'Casa Sra. Marta'
-    });
-
-    await registerIncome({
-      walletType: 'DIGITAL',
-      amount: 18000,
-      category: 'Cobro jornada',
-      note: 'Transferencia por limpieza'
-    });
-
-    // Cargar 2 facturas pendientes de prueba para la casa
-    const nextWeek = new Date(Date.now() + 6 * 86400000).toISOString().split('T')[0];
-    const twoWeeks = new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0];
-
-    await createBill({
-      serviceName: 'Edenor / Luz',
-      amount: 12850,
-      dueDate: nextWeek,
-      createdBy: 'Lucas - PC'
-    });
-
-    await createBill({
-      serviceName: 'Internet / WiFi',
-      amount: 8500,
-      dueDate: twoWeeks,
-      createdBy: 'Lucas - PC'
-    });
-  }
-}
 
 /**
  * Control del Switcher de Vistas (Celular / PC / Dividida)

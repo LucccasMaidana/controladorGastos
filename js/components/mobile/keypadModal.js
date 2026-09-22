@@ -9,6 +9,7 @@ import { registerIncome, registerExpense, formatCurrency } from '../../services/
 
 let currentModalState = {
   isOpen: false,
+  userName: 'Usuario',
   mode: 'INCOME', // 'INCOME' o 'EXPENSE'
   amountStr: '0',
   walletType: 'CASH', // 'CASH' o 'DIGITAL'
@@ -17,9 +18,10 @@ let currentModalState = {
   onCloseCallback: null
 };
 
-export function openKeypadModal(mode = 'INCOME', onClose = null) {
+export function openKeypadModal(mode = 'INCOME', userName = 'Usuario', onClose = null) {
   currentModalState = {
     isOpen: true,
+    userName: userName || 'Usuario',
     mode: mode,
     amountStr: '0',
     walletType: 'CASH',
@@ -95,6 +97,7 @@ async function handleSaveTransaction() {
   try {
     if (currentModalState.mode === 'INCOME') {
       await registerIncome({
+        userName: currentModalState.userName,
         walletType: currentModalState.walletType,
         amount: amount,
         category: currentModalState.category,
@@ -102,6 +105,7 @@ async function handleSaveTransaction() {
       });
     } else {
       await registerExpense({
+        userName: currentModalState.userName,
         walletType: currentModalState.walletType,
         amount: amount,
         category: currentModalState.category,

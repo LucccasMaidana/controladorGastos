@@ -1,7 +1,7 @@
 /**
  * ============================================================================
- * ACCOUNTING SERVICE (LÓGICA DE NEGOCIO Y REGLAS CONTABLES)
- * Manejo estricto de decimales, cálculo de métricas y liquidación de facturas
+ * ACCOUNTING SERVICE (LÓGICA DE NEGOCIO Y REGLAS CONTABLES MULTIUSUARIO)
+ * Manejo estricto de decimales, billeteras independientes y consolidación
  * ============================================================================
  */
 
@@ -10,7 +10,8 @@ import {
   getFromStore, 
   putInStore, 
   deleteFromStore, 
-  initializeDefaultWallets 
+  initializeUserWallets,
+  clearAllLocalData 
 } from '../db/indexedDb.js';
 import { pushTransactionToCloud, pushBillToCloud } from '../db/supabase.js';
 
@@ -63,16 +64,20 @@ export function generateUUID() {
 }
 
 /**
- * Obtener billetera por tipo ('CASH' o 'DIGITAL')
+ * Obtener o crear billetera por usuario y tipo ('CASH' o 'DIGITAL')
  */
-export async function getWalletByType(walletType) {
-  await initializeDefaultWallets();
+export async function getWalletByType(userName = 'Usuario', walletType = 'CASH') {
+  const normUser = (userName || 'Usuario').trim();
+  await initializeUserWallets(normUser);
   const wallets = await getAllFromStore('wallets');
-  let wallet = wallets.find(w => w.type === walletType);
+  let wallet = wallets.find(w => 
+    w.user_name && w.user_name.toLowerCase() === normUser.toLowerCase() && w.type === walletType
+  );
 
   if (!wallet) {
     wallet = {
-      id: walletType === 'CASH' ? 'cash_wallet' : 'digital_wallet',
+      id: `${walletType.toLowerCase()}_${normUser.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+      user_name: normUser,
       name: walletType === 'CASH' ? 'Billetes en Mano' : 'Cuenta Digital / MP',
       type: walletType,
       current_balance: 0.00,
@@ -84,19 +89,21 @@ export async function getWalletByType(walletType) {
 }
 
 /**
- * 1. REGISTRAR INGRESO DIARIO
+ * 1. REGISTRAR INGRESO (POR USUARIO)
  */
-export async function registerIncome({ walletType, amount, note = '', category = 'Cobro jornada' }) {
+export async function registerIncome({ userName = 'Usuario', walletType, amount, note = '', category = 'Cobro jornada' }) {
+  const normUser = (userName || 'Usuario').trim();
   const validAmount = roundCurrency(amount);
   if (validAmount <= 0) throw new Error('El monto debe ser mayor a cero');
 
-  const wallet = await getWalletByType(walletType);
+  const wallet = await getWalletByType(normUser, walletType);
   wallet.current_balance = roundCurrency(wallet.current_balance + validAmount);
   wallet.updated_at = new Date().toISOString();
   await putInStore('wallets', wallet);
 
   const tx = {
     id: generateUUID(),
+    user_name: normUser,
     date: new Date().toISOString(),
     amount: validAmount,
     type: 'INCOME',
@@ -121,19 +128,21 @@ export async function registerIncome({ walletType, amount, note = '', category =
 }
 
 /**
- * 2. REGISTRAR EGRESO COMÚN
+ * 2. REGISTRAR EGRESO (POR USUARIO)
  */
-export async function registerExpense({ walletType, amount, note = '', category = 'Gasto vario' }) {
+export async function registerExpense({ userName = 'Usuario', walletType, amount, note = '', category = 'Gasto vario' }) {
+  const normUser = (userName || 'Usuario').trim();
   const validAmount = roundCurrency(amount);
   if (validAmount <= 0) throw new Error('El monto debe ser mayor a cero');
 
-  const wallet = await getWalletByType(walletType);
+  const wallet = await getWalletByType(normUser, walletType);
   wallet.current_balance = roundCurrency(wallet.current_balance - validAmount);
   wallet.updated_at = new Date().toISOString();
   await putInStore('wallets', wallet);
 
   const tx = {
     id: generateUUID(),
+    user_name: normUser,
     date: new Date().toISOString(),
     amount: validAmount,
     type: 'EXPENSE',
@@ -158,36 +167,73 @@ export async function registerExpense({ walletType, amount, note = '', category 
 }
 
 /**
- * 3. CÁLCULO DE BALANCE Y MÉTRICAS
+ * 3. CÁLCULO DE BALANCE Y MÉTRICAS (POR USUARIO O CONSOLIDADO HOGAR)
  */
-export async function getFinancialSummary() {
-  await initializeDefaultWallets();
-  const cashWallet = await getWalletByType('CASH');
-  const digitalWallet = await getWalletByType('DIGITAL');
+export async function getFinancialSummary(userName = null) {
+  const wallets = await getAllFromStore('wallets');
   const bills = await getAllFromStore('bills');
 
   const pendingBills = bills.filter(b => b.status === 'PENDING');
-  const totalCash = roundCurrency(cashWallet.current_balance);
-  const totalDigital = roundCurrency(digitalWallet.current_balance);
   const totalPendingDebt = roundCurrency(pendingBills.reduce((acc, b) => acc + (Number(b.amount) || 0), 0));
-  const realNetBalance = roundCurrency((totalCash + totalDigital) - totalPendingDebt);
 
-  return {
-    totalCash,
-    totalDigital,
-    totalAvailable: roundCurrency(totalCash + totalDigital),
-    totalPendingDebt,
-    pendingBillsCount: pendingBills.length,
-    realNetBalance,
-    pendingBills
-  };
+  if (userName) {
+    const normUser = userName.trim().toLowerCase();
+    await initializeUserWallets(userName);
+    const allUpdatedWallets = await getAllFromStore('wallets');
+    const userWallets = allUpdatedWallets.filter(w => w.user_name && w.user_name.toLowerCase() === normUser);
+    const cash = userWallets.find(w => w.type === 'CASH')?.current_balance || 0;
+    const digital = userWallets.find(w => w.type === 'DIGITAL')?.current_balance || 0;
+
+    return {
+      userName,
+      totalCash: roundCurrency(cash),
+      totalDigital: roundCurrency(digital),
+      totalAvailable: roundCurrency(cash + digital),
+      totalPendingDebt,
+      pendingBillsCount: pendingBills.length,
+      realNetBalance: roundCurrency((cash + digital) - totalPendingDebt),
+      pendingBills
+    };
+  } else {
+    // Total consolidado del hogar
+    const totalCash = roundCurrency(wallets.filter(w => w.type === 'CASH').reduce((a, b) => a + (Number(b.current_balance) || 0), 0));
+    const totalDigital = roundCurrency(wallets.filter(w => w.type === 'DIGITAL').reduce((a, b) => a + (Number(b.current_balance) || 0), 0));
+
+    return {
+      userName: 'Hogar',
+      totalCash,
+      totalDigital,
+      totalAvailable: roundCurrency(totalCash + totalDigital),
+      totalPendingDebt,
+      pendingBillsCount: pendingBills.length,
+      realNetBalance: roundCurrency((totalCash + totalDigital) - totalPendingDebt),
+      pendingBills
+    };
+  }
 }
 
 /**
- * 4. GESTIÓN DE FACTURAS (BILLS)
+ * 4. OBTENER LISTA DE TODOS LOS INTEGRANTES REGISTRADOS
  */
+export async function getAllRegisteredUsers() {
+  const wallets = await getAllFromStore('wallets');
+  const txs = await getAllFromStore('transactions');
+  const userSet = new Set();
 
-export async function createBill({ serviceName, amount, dueDate, createdBy = 'Lucas - PC' }) {
+  wallets.forEach(w => { 
+    if (w.user_name && w.user_name.toLowerCase() !== 'usuario') userSet.add(w.user_name); 
+  });
+  txs.forEach(t => { 
+    if (t.user_name && t.user_name.toLowerCase() !== 'usuario') userSet.add(t.user_name); 
+  });
+
+  return Array.from(userSet).sort();
+}
+
+/**
+ * 5. GESTIÓN DE FACTURAS (BILLS)
+ */
+export async function createBill({ serviceName, amount, dueDate, createdBy = 'Admin' }) {
   const validAmount = roundCurrency(amount);
   if (validAmount <= 0) throw new Error('El monto de la factura debe ser mayor a cero');
   if (!serviceName) throw new Error('Debe especificar el nombre del servicio');
@@ -202,6 +248,7 @@ export async function createBill({ serviceName, amount, dueDate, createdBy = 'Lu
     paid_at: null,
     paid_cash_amount: 0.00,
     paid_digital_amount: 0.00,
+    paid_by: null,
     created_by: createdBy,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
@@ -215,10 +262,9 @@ export async function createBill({ serviceName, amount, dueDate, createdBy = 'Lu
 }
 
 /**
- * 5. LIQUIDACIÓN DE FACTURA (DESGLOSE DE PAGO EFECTIVO / DIGITAL)
- * Al pagar una factura, genera automáticamente los egresos correspondientes
+ * 6. LIQUIDACIÓN DE FACTURA (CON INDICACIÓN DE QUIÉN PAGÓ)
  */
-export async function settleBill({ billId, paidCashAmount, paidDigitalAmount }) {
+export async function settleBill({ billId, paidByUserName, paidCashAmount, paidDigitalAmount }) {
   const bill = await getFromStore('bills', billId);
   if (!bill) throw new Error('Factura no encontrada');
   if (bill.status === 'PAID') throw new Error('Esta factura ya fue liquidada');
@@ -226,6 +272,7 @@ export async function settleBill({ billId, paidCashAmount, paidDigitalAmount }) 
   const cash = roundCurrency(paidCashAmount);
   const digital = roundCurrency(paidDigitalAmount);
   const totalPaid = roundCurrency(cash + digital);
+  const payer = (paidByUserName || 'Usuario').trim();
 
   if (Math.abs(totalPaid - bill.amount) > 0.01) {
     throw new Error(`La suma pagada ($${totalPaid}) debe ser exactamente igual al monto de la factura ($${bill.amount})`);
@@ -236,14 +283,16 @@ export async function settleBill({ billId, paidCashAmount, paidDigitalAmount }) 
   bill.paid_at = new Date().toISOString();
   bill.paid_cash_amount = cash;
   bill.paid_digital_amount = digital;
+  bill.paid_by = payer;
   bill.updated_at = new Date().toISOString();
 
   await putInStore('bills', bill);
   pushBillToCloud(bill);
 
-  // d) Se generan automáticamente los egresos contables:
+  // Se generan automáticamente los egresos contables para la persona que pagó:
   if (cash > 0) {
     await registerExpense({
+      userName: payer,
       walletType: 'CASH',
       amount: cash,
       category: 'Servicios',
@@ -253,6 +302,7 @@ export async function settleBill({ billId, paidCashAmount, paidDigitalAmount }) 
 
   if (digital > 0) {
     await registerExpense({
+      userName: payer,
       walletType: 'DIGITAL',
       amount: digital,
       category: 'Servicios',
@@ -273,10 +323,14 @@ export async function deleteBill(billId) {
 }
 
 /**
- * Obtener transacciones con filtro
+ * Obtener transacciones por usuario y filtro de billetera
  */
-export async function getTransactions(walletFilter = 'ALL') {
-  const transactions = await getAllFromStore('transactions');
+export async function getTransactions(userName = null, walletFilter = 'ALL') {
+  let transactions = await getAllFromStore('transactions');
+  if (userName) {
+    const norm = userName.trim().toLowerCase();
+    transactions = transactions.filter(t => t.user_name && t.user_name.toLowerCase() === norm);
+  }
   // Ordenar de más reciente a más antigua
   transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -285,7 +339,7 @@ export async function getTransactions(walletFilter = 'ALL') {
 }
 
 /**
- * Obtener todas las facturas ordenadas por fecha de vencimiento
+ * Obtener todas las facturas
  */
 export async function getBillsList(statusFilter = 'ALL') {
   const bills = await getAllFromStore('bills');
@@ -293,4 +347,15 @@ export async function getBillsList(statusFilter = 'ALL') {
 
   if (statusFilter === 'ALL') return bills;
   return bills.filter(b => b.status === statusFilter);
+}
+
+/**
+ * 7. PUESTA A CERO PARA PRODUCCIÓN (VACIAR BASE DE DATOS)
+ */
+export async function wipeAllDataForProduction() {
+  await clearAllLocalData();
+  localStorage.removeItem('libreta_active_user');
+  sessionStorage.removeItem('admin_session_auth');
+  notifyChange();
+  return true;
 }

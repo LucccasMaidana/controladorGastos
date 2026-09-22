@@ -9,8 +9,8 @@ import { getTransactions, formatCurrency } from '../../services/accounting.js';
 
 let activeHistoryFilter = 'ALL'; // 'ALL', 'CASH', 'DIGITAL'
 
-export async function renderMobileHistoryView(container) {
-  const transactions = await getTransactions(activeHistoryFilter);
+export async function renderMobileHistoryView(container, userName = null) {
+  const transactions = await getTransactions(userName, activeHistoryFilter);
 
   // Agrupar por fecha local (AAAA-MM-DD)
   const grouped = {};
@@ -109,14 +109,14 @@ export async function renderMobileHistoryView(container) {
   // Listeners de filtro
   document.getElementById('filter-all')?.addEventListener('click', () => {
     activeHistoryFilter = 'ALL';
-    renderMobileHistoryView(container);
+    renderMobileHistoryView(container, userName);
   });
   document.getElementById('filter-cash')?.addEventListener('click', () => {
     activeHistoryFilter = 'CASH';
-    renderMobileHistoryView(container);
+    renderMobileHistoryView(container, userName);
   });
   document.getElementById('filter-digital')?.addEventListener('click', () => {
     activeHistoryFilter = 'DIGITAL';
-    renderMobileHistoryView(container);
+    renderMobileHistoryView(container, userName);
   });
 }

@@ -66,23 +66,27 @@ export async function getDb() {
 }
 
 /**
- * Inicializar billeteras por defecto si la base está vacía
+ * Inicializar billeteras por usuario de forma dinámica
  */
-export async function initializeDefaultWallets() {
-  const db = await getDb();
+export async function initializeUserWallets(userName) {
+  if (!userName) return [];
+  const normalized = userName.trim();
   const wallets = await getAllFromStore('wallets');
+  let userWallets = wallets.filter(w => w.user_name && w.user_name.toLowerCase() === normalized.toLowerCase());
 
-  if (wallets.length === 0) {
+  if (userWallets.length === 0) {
     const defaultWallets = [
       {
-        id: 'cash_wallet',
+        id: `cash_${normalized.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+        user_name: normalized,
         name: 'Billetes en Mano',
         type: 'CASH',
         current_balance: 0.00,
         updated_at: new Date().toISOString()
       },
       {
-        id: 'digital_wallet',
+        id: `digital_${normalized.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+        user_name: normalized,
         name: 'Cuenta Digital / MP',
         type: 'DIGITAL',
         current_balance: 0.00,
@@ -93,8 +97,32 @@ export async function initializeDefaultWallets() {
     for (const w of defaultWallets) {
       await putInStore('wallets', w);
     }
-    console.log('✅ Billeteras por defecto inicializadas localmente');
+    console.log(`✅ Billeteras creadas para: ${normalized}`);
+    return defaultWallets;
   }
+  return userWallets;
+}
+
+export async function initializeDefaultWallets() {
+  // Mantener compatibilidad si se llama sin argumentos
+  return;
+}
+
+/**
+ * Vaciar todos los datos locales (Puesta a cero para producción)
+ */
+export async function clearAllLocalData() {
+  const db = await getDb();
+  const stores = ['wallets', 'transactions', 'bills', 'sync_queue'];
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(stores, 'readwrite');
+    stores.forEach(s => tx.objectStore(s).clear());
+    tx.oncomplete = () => {
+      console.log('🧹 Base de datos local vaciada por completo');
+      resolve(true);
+    };
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 // ============================================================================

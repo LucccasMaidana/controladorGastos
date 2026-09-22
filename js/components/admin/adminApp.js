@@ -1,7 +1,7 @@
 /**
  * ============================================================================
- * ADMIN WEB CONTROLLER (PANEL PC DE LUCAS)
- * Carga de facturas, liquidación con desglose automático y configuración Supabase
+ * ADMIN WEB CONTROLLER (PANEL DE ADMINISTRACIÓN MULTIUSUARIO)
+ * Monitoreo de integrantes, liquidación con selección de pagador y puesta a cero
  * ============================================================================
  */
 
@@ -13,12 +13,14 @@ import {
   deleteBill, 
   formatCurrency, 
   roundCurrency,
-  onAccountingChange 
+  onAccountingChange,
+  getAllRegisteredUsers,
+  wipeAllDataForProduction 
 } from '../../services/accounting.js';
 import { configureSupabase, testSupabaseConnection } from '../../db/supabase.js';
 import { getConfig } from '../../db/indexedDb.js';
 
-const ADMIN_USER = 'Lucas';
+const ADMIN_USER = 'Admin';
 const ADMIN_PASS = 'JjunieBronce1';
 const AUTH_KEY = 'admin_session_auth';
 
@@ -35,6 +37,7 @@ export function setAdminAuthenticated(val) {
 }
 
 let activeFilter = 'PENDING'; // 'PENDING', 'PAID', 'ALL'
+let adminActiveUserFilter = null; // null = Consolidado Hogar, o nombre de integrante
 let selectedBillForSettlement = null;
 
 export function initAdminApp(rootElement) {
@@ -53,7 +56,8 @@ export async function renderAdminApp(rootElement) {
     return;
   }
 
-  const summary = await getFinancialSummary();
+  const registeredUsers = await getAllRegisteredUsers();
+  const summary = await getFinancialSummary(adminActiveUserFilter);
   const bills = await getBillsList(activeFilter);
   const supabaseUrl = await getConfig('supabase_url', '');
   const supabaseKey = await getConfig('supabase_anon_key', '');
@@ -65,10 +69,14 @@ export async function renderAdminApp(rootElement) {
       <div class="admin-header">
         <div class="admin-header-title">
           <h2>Panel Administrador de Servicios 💻</h2>
-          <p>Control de boletas del hogar y conciliación de pagos con Mariel</p>
+          <p>Supervisión familiar, gestión de facturas y liquidación de pagos</p>
         </div>
 
         <div class="admin-header-actions">
+          <button type="button" class="btn-secondary" id="btn-wipe-production" title="Borrar datos de prueba para dejar la app limpia" style="color: #fb7185; border-color: rgba(251, 113, 133, 0.3);">
+            <span>🗑️</span>
+            <span>Puesta a Cero</span>
+          </button>
           <button type="button" class="btn-secondary" id="btn-open-settings">
             <span>⚙️</span>
             <span>${isCloudConnected ? 'Nube Conectada' : 'Conectar Supabase'}</span>
@@ -77,18 +85,31 @@ export async function renderAdminApp(rootElement) {
             <span>＋</span>
             <span>Cargar Nueva Factura</span>
           </button>
-          <button type="button" class="btn-secondary" id="btn-admin-logout" title="Cerrar sesión de Administrador" style="color: #fb7185;">
+          <button type="button" class="btn-secondary" id="btn-admin-logout" title="Cerrar sesión de Administrador" style="color: #fbbf24;">
             <span>🔒</span>
             <span>Salir</span>
           </button>
         </div>
       </div>
 
-      <!-- Métricas Financieras Familiares (4 Tarjetas) -->
+      <!-- Barra de Filtro por Integrante de la Familia -->
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--bg-input); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+        <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Ver Saldos de:</span>
+        <button type="button" class="admin-tab-btn ${adminActiveUserFilter === null ? 'active' : ''}" id="user-tab-all">
+          🏠 Consolidado Hogar
+        </button>
+        ${registeredUsers.map(u => `
+          <button type="button" class="admin-tab-btn ${adminActiveUserFilter === u ? 'active' : ''}" data-user-filter="${u}">
+            👤 ${u}
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Métricas Financieras (4 Tarjetas) -->
       <div class="admin-metrics-grid">
         <div class="metric-card">
           <div class="metric-header">
-            <span class="metric-title">Billetes en Mano (Mariel)</span>
+            <span class="metric-title">Billetes en Mano (${summary.userName})</span>
             <span class="metric-badge">💵</span>
           </div>
           <div class="metric-value cash">${formatCurrency(summary.totalCash)}</div>
@@ -97,16 +118,16 @@ export async function renderAdminApp(rootElement) {
 
         <div class="metric-card">
           <div class="metric-header">
-            <span class="metric-title">En Cuenta Digital / MP</span>
+            <span class="metric-title">En Cuenta Digital (${summary.userName})</span>
             <span class="metric-badge">💳</span>
           </div>
           <div class="metric-value digital">${formatCurrency(summary.totalDigital)}</div>
-          <div class="metric-subtext">Transferencias y billeteras</div>
+          <div class="metric-subtext">Transferencias / Billeteras</div>
         </div>
 
         <div class="metric-card">
           <div class="metric-header">
-            <span class="metric-title">Facturas Pendientes</span>
+            <span class="metric-title">Facturas Pendientes Hogar</span>
             <span class="metric-badge">⚠️</span>
           </div>
           <div class="metric-value warning">${formatCurrency(summary.totalPendingDebt)}</div>
@@ -115,18 +136,18 @@ export async function renderAdminApp(rootElement) {
 
         <div class="metric-card">
           <div class="metric-header">
-            <span class="metric-title">Balance Real Neto</span>
+            <span class="metric-title">Balance Real Neto (${summary.userName})</span>
             <span class="metric-badge">📊</span>
           </div>
           <div class="metric-value net">${formatCurrency(summary.realNetBalance)}</div>
-          <div class="metric-subtext">Total disponible menos deudas</div>
+          <div class="metric-subtext">Disponible libre menos compromisos</div>
         </div>
       </div>
 
       <!-- Controles de Tabla y Filtros -->
       <div class="admin-table-controls">
         <div style="font-size: 15px; font-weight: 700;">
-          Listado de Servicios y Facturas
+          Listado de Servicios y Facturas del Hogar
         </div>
 
         <div class="admin-filter-tabs">
@@ -171,7 +192,7 @@ export async function renderAdminApp(rootElement) {
                       <div class="service-icon">${getServiceIcon(bill.service_name)}</div>
                       <div>
                         <div>${bill.service_name}</div>
-                        <div style="font-size: 11px; color: var(--text-dim);">Cargado por: ${bill.created_by || 'Lucas'}</div>
+                        <div style="font-size: 11px; color: var(--text-dim);">Cargado por: ${bill.created_by || 'Admin'}</div>
                       </div>
                     </div>
                   </td>
@@ -188,8 +209,8 @@ export async function renderAdminApp(rootElement) {
                   </td>
                   <td style="font-size: 12px; color: var(--text-muted);">
                     ${isPending ? '—' : `
-                      <div>💵 Efectivo: $${bill.paid_cash_amount || 0}</div>
-                      <div>💳 Digital: $${bill.paid_digital_amount || 0}</div>
+                      <div>Cubierto por: <strong>${bill.paid_by || 'Mariel'}</strong></div>
+                      <div>💵 Efectivo: $${bill.paid_cash_amount || 0} / 💳 Digital: $${bill.paid_digital_amount || 0}</div>
                     `}
                   </td>
                   <td style="text-align: right;">
@@ -219,6 +240,28 @@ export async function renderAdminApp(rootElement) {
   document.getElementById('btn-open-create-bill')?.addEventListener('click', () => openCreateBillModal(rootElement));
   document.getElementById('btn-open-settings')?.addEventListener('click', () => openSettingsModal(rootElement));
 
+  // Puesta a cero para producción
+  document.getElementById('btn-wipe-production')?.addEventListener('click', async () => {
+    const ok = confirm('⚠️ ¿Deseas vaciar todos los cobros, gastos y movimientos para dejar la aplicación lista para producción?\n\nEsto dejará la base de datos totalmente limpia.');
+    if (ok) {
+      await wipeAllDataForProduction();
+      alert('✅ Datos vaciados con éxito. La aplicación está en cero y lista para producción.');
+      renderAdminApp(rootElement);
+    }
+  });
+
+  // Filtro por usuario
+  document.getElementById('user-tab-all')?.addEventListener('click', () => {
+    adminActiveUserFilter = null;
+    renderAdminApp(rootElement);
+  });
+  document.querySelectorAll('[data-user-filter]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      adminActiveUserFilter = e.currentTarget.dataset.userFilter;
+      renderAdminApp(rootElement);
+    });
+  });
+
   document.getElementById('filter-pending')?.addEventListener('click', () => { activeFilter = 'PENDING'; renderAdminApp(rootElement); });
   document.getElementById('filter-paid')?.addEventListener('click', () => { activeFilter = 'PAID'; renderAdminApp(rootElement); });
   document.getElementById('filter-all-bills')?.addEventListener('click', () => { activeFilter = 'ALL'; renderAdminApp(rootElement); });
@@ -230,7 +273,17 @@ export async function renderAdminApp(rootElement) {
       const allBills = await getBillsList('ALL');
       const bill = allBills.find(b => b.id === billId);
       if (bill) {
-        openSettleBillModal(bill, rootElement);
+        openSettleBillModal(bill, rootElement, registeredUsers);
+      }
+    });
+  });
+
+  // Eliminar Facturas
+  document.querySelectorAll('[data-delete-id]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const billId = e.currentTarget.dataset.deleteId;
+      if (confirm('¿Estás seguro de que deseas eliminar este registro de factura?')) {
+        await deleteBill(billId);
       }
     });
   });
@@ -255,7 +308,7 @@ function renderAdminLogin(rootElement) {
         <form id="admin-login-form" style="display: flex; flex-direction: column; gap: 14px;">
           <div class="admin-form-group">
             <label class="admin-form-label">Usuario:</label>
-            <input type="text" id="login-username" class="admin-form-input" placeholder="Lucas" value="Lucas" autocomplete="username" required />
+            <input type="text" id="login-username" class="admin-form-input" placeholder="Admin" value="Admin" autocomplete="username" required />
           </div>
 
           <div class="admin-form-group">
@@ -285,10 +338,10 @@ function renderAdminLogin(rootElement) {
 
   form?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const u = userIn.value.trim();
+    const u = userIn.value.trim().toLowerCase();
     const p = passIn.value;
 
-    if (u.toLowerCase() === ADMIN_USER.toLowerCase() && p === ADMIN_PASS) {
+    if (u === 'admin' && p === ADMIN_PASS) {
       setAdminAuthenticated(true);
       renderAdminApp(rootElement);
     } else {
@@ -324,7 +377,6 @@ function openCreateBillModal(rootElement) {
   const modalRoot = document.getElementById('admin-modals-root');
   if (!modalRoot) return;
 
-  // Fecha de vencimiento por defecto: 7 días en adelante
   const defaultDueDate = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
   modalRoot.innerHTML = `
@@ -371,7 +423,6 @@ function openCreateBillModal(rootElement) {
     </div>
   `;
 
-  // Presets click
   modalRoot.querySelectorAll('.preset-service-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.getElementById('input-bill-service').value = e.currentTarget.dataset.service;
@@ -405,7 +456,7 @@ function openCreateBillModal(rootElement) {
         serviceName,
         amount,
         dueDate,
-        createdBy: 'Lucas - PC'
+        createdBy: 'Admin'
       });
       closeModal();
     } catch (err) {
@@ -415,9 +466,9 @@ function openCreateBillModal(rootElement) {
 }
 
 // ============================================================================
-// MODAL: LIQUIDAR FACTURA (DESGLOSE BILLETE / DIGITAL)
+// MODAL: LIQUIDAR FACTURA (DESGLOSE BILLETE / DIGITAL Y SELECCIÓN DE PAGADOR)
 // ============================================================================
-function openSettleBillModal(bill, rootElement) {
+function openSettleBillModal(bill, rootElement, registeredUsers = []) {
   const modalRoot = document.getElementById('admin-modals-root');
   if (!modalRoot) return;
 
@@ -433,6 +484,7 @@ function openSettleBillModal(bill, rootElement) {
     const currentSum = roundCurrency(cashVal + digitalVal);
     const feedbackBox = document.getElementById('settle-validation-feedback');
     const submitBtn = document.getElementById('btn-confirm-settle');
+    const payerName = document.getElementById('select-settle-payer')?.value || 'el integrante';
 
     const diff = roundCurrency(totalAmount - currentSum);
 
@@ -440,7 +492,7 @@ function openSettleBillModal(bill, rootElement) {
       feedbackBox.className = 'validation-feedback-box valid';
       feedbackBox.innerHTML = `
         <span>✓</span>
-        <span>Desglose exacto: ${formatCurrency(currentSum)}. Se generarán automáticamente 2 egresos en la app de Mariel.</span>
+        <span>Desglose exacto: ${formatCurrency(currentSum)}. Se descontará automáticamente de la libreta de ${payerName}.</span>
       `;
       submitBtn.disabled = false;
       submitBtn.style.opacity = '1';
@@ -454,6 +506,8 @@ function openSettleBillModal(bill, rootElement) {
       submitBtn.style.opacity = '0.5';
     }
   }
+
+  const defaultPayerOptions = registeredUsers.length > 0 ? registeredUsers : ['Mariel Vallejos', 'Lucas Maidana'];
 
   modalRoot.innerHTML = `
     <div class="admin-modal-backdrop" id="modal-settle-backdrop">
@@ -471,9 +525,19 @@ function openSettleBillModal(bill, rootElement) {
           <div class="total-amount">${formatCurrency(totalAmount)}</div>
         </div>
 
+        <!-- Selector de quién entregó el dinero -->
+        <div class="admin-form-group">
+          <label class="admin-form-label">¿Quién cubrió el dinero de la factura?:</label>
+          <select id="select-settle-payer" class="admin-form-input" style="font-weight: 700;">
+            ${defaultPayerOptions.map(u => `
+              <option value="${u}">${u}</option>
+            `).join('')}
+          </select>
+        </div>
+
         <!-- Presets Rápidos de Desglose -->
         <div class="admin-form-group">
-          <label class="admin-form-label">Distribución rápida del dinero entregado:</label>
+          <label class="admin-form-label">Distribución del dinero entregado:</label>
           <div class="settlement-presets-bar">
             <button type="button" class="settlement-preset-btn" id="preset-all-cash">100% Efectivo</button>
             <button type="button" class="settlement-preset-btn" id="preset-all-digital">100% Digital</button>
@@ -500,10 +564,6 @@ function openSettleBillModal(bill, rootElement) {
           <span>Desglose exacto: ${formatCurrency(totalAmount)}.</span>
         </div>
 
-        <div class="settlement-note">
-          ℹ️ <strong>Importante:</strong> Al confirmar, esta boleta pasará a estado <strong>PAGADA</strong> y se generarán automáticamente los registros de egreso correspondientes en la libreta de Mariel, descontando los saldos en cuanto sincronice.
-        </div>
-
         <div style="display: flex; justify-content: flex-end; gap: 10px;">
           <button type="button" class="btn-secondary" id="btn-cancel-settle">Cancelar</button>
           <button type="button" class="btn-primary" id="btn-confirm-settle" style="background: linear-gradient(135deg, #10b981, #059669);">
@@ -516,11 +576,12 @@ function openSettleBillModal(bill, rootElement) {
 
   const cashInput = document.getElementById('input-settle-cash');
   const digitalInput = document.getElementById('input-settle-digital');
+  const payerSelect = document.getElementById('select-settle-payer');
 
   cashInput.addEventListener('input', updateFeedback);
   digitalInput.addEventListener('input', updateFeedback);
+  payerSelect?.addEventListener('change', updateFeedback);
 
-  // Preset buttons
   document.getElementById('preset-all-cash').addEventListener('click', () => {
     cashInput.value = totalAmount;
     digitalInput.value = 0;
@@ -545,10 +606,12 @@ function openSettleBillModal(bill, rootElement) {
   document.getElementById('btn-confirm-settle')?.addEventListener('click', async () => {
     const cashVal = roundCurrency(parseFloat(cashInput.value) || 0);
     const digitalVal = roundCurrency(parseFloat(digitalInput.value) || 0);
+    const payer = payerSelect?.value || 'Usuario';
 
     try {
       await settleBill({
         billId: bill.id,
+        paidByUserName: payer,
         paidCashAmount: cashVal,
         paidDigitalAmount: digitalVal
       });
@@ -580,10 +643,8 @@ async function openSettingsModal(rootElement) {
         </div>
 
         <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: var(--radius-md); padding: 12px 14px; font-size: 12px; color: #bae6fd; line-height: 1.4;">
-          <strong>Pasos para conectar la nube (Gratis en 3 minutos):</strong><br/>
-          1. Entra a <strong>supabase.com</strong> y crea un proyecto.<br/>
-          2. En <strong>Settings -> API</strong> copia el URL y la clave anon.<br/>
-          3. Pega el script <code>supabase_schema.sql</code> en el SQL Editor de Supabase y ¡listo!
+          <strong>Sincronización en la Nube:</strong><br/>
+          La app sincroniza en tiempo real contra Supabase. Puedes verificar o actualizar la URL y la clave anon pública.
         </div>
 
         <div class="admin-form-group">
