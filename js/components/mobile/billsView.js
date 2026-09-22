@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * MOBILE BILLS VIEW (LISTA DE FACTURAS PARA MAMÁ)
+ * MOBILE BILLS VIEW (LISTA DE FACTURAS PARA MARIEL)
  * Facturas de servicios ordenadas por vencimiento próximo
  * ============================================================================
  */

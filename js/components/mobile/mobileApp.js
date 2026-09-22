@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * MOBILE APP COMPONENT (INTERFAZ DE MAMÁ)
+ * MOBILE APP COMPONENT (INTERFAZ DE MARIEL)
  * Vista principal con navegación accesible y actualización en tiempo real
  * ============================================================================
  */
@@ -13,7 +13,7 @@ import { renderMobileHistoryView } from './historyView.js';
 let currentTab = 'DASHBOARD'; // 'DASHBOARD', 'BILLS', 'HISTORY'
 
 export function initMobileApp(rootElement) {
-  // Suscribirse a cambios contables para refrescar automáticamente la pantalla de mamá
+  // Suscribirse a cambios contables para refrescar automáticamente la pantalla de Mariel
   onAccountingChange(() => {
     renderCurrentTab();
   });
@@ -29,7 +29,7 @@ function renderMobileAppShell(rootElement) {
       <div class="mobile-header">
         <div class="mobile-user-greeting">
           <span class="app-name">Libreta Contable</span>
-          <h2 class="user-title">Hola, Mamá 👋</h2>
+          <h2 class="user-title">Hola, Mariel 👋</h2>
         </div>
         <div class="mobile-sync-icon" id="mobile-header-sync" title="Estado de la app">
           🟢

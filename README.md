@@ -6,7 +6,7 @@ Aplicación **Offline-First** diseñada para registrar cobros y gastos diarios (
 
 ## 🌟 Características Principales
 
-### 📱 Para la Usuaria Principal (Celular / Mamá)
+### 📱 Para la Usuaria Principal (Celular / Mariel)
 - **Interfaz Accesible de Alto Contraste:**
   - 🟢 **Tarjeta Verde:** Billetes en Mano (Efectivo físico disponible).
   - 🟣 **Tarjeta Azul/Violeta:** Cuenta Digital (Mercado Pago / Banco).

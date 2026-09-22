@@ -42,7 +42,7 @@ export async function renderAdminApp(rootElement) {
       <div class="admin-header">
         <div class="admin-header-title">
           <h2>Panel Administrador de Servicios 💻</h2>
-          <p>Control de boletas del hogar y conciliación de pagos con tu mamá</p>
+          <p>Control de boletas del hogar y conciliación de pagos con Mariel</p>
         </div>
 
         <div class="admin-header-actions">
@@ -61,7 +61,7 @@ export async function renderAdminApp(rootElement) {
       <div class="admin-metrics-grid">
         <div class="metric-card">
           <div class="metric-header">
-            <span class="metric-title">Billetes en Mano (Mamá)</span>
+            <span class="metric-title">Billetes en Mano (Mariel)</span>
             <span class="metric-badge">💵</span>
           </div>
           <div class="metric-value cash">${formatCurrency(summary.totalCash)}</div>
@@ -360,7 +360,7 @@ function openSettleBillModal(bill, rootElement) {
       feedbackBox.className = 'validation-feedback-box valid';
       feedbackBox.innerHTML = `
         <span>✓</span>
-        <span>Desglose exacto: ${formatCurrency(currentSum)}. Se generarán automáticamente 2 egresos en la app de tu mamá.</span>
+        <span>Desglose exacto: ${formatCurrency(currentSum)}. Se generarán automáticamente 2 egresos en la app de Mariel.</span>
       `;
       submitBtn.disabled = false;
       submitBtn.style.opacity = '1';
@@ -421,7 +421,7 @@ function openSettleBillModal(bill, rootElement) {
         </div>
 
         <div class="settlement-note">
-          ℹ️ <strong>Importante:</strong> Al confirmar, esta boleta pasará a estado <strong>PAGADA</strong> y se generarán automáticamente los registros de egreso correspondientes en la libreta de tu mamá, descontando los saldos en cuanto sincronice.
+          ℹ️ <strong>Importante:</strong> Al confirmar, esta boleta pasará a estado <strong>PAGADA</strong> y se generarán automáticamente los registros de egreso correspondientes en la libreta de Mariel, descontando los saldos en cuanto sincronice.
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px;">

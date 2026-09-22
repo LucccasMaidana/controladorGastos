@@ -75,7 +75,7 @@ async function seedInitialDataIfEmpty() {
   if (bills.length === 0 && transactions.length === 0) {
     console.log('🌱 Sembrando datos demostrativos iniciales...');
     
-    // Registrar un cobro inicial para mamá
+    // Registrar un cobro inicial para Mariel
     await registerIncome({
       walletType: 'CASH',
       amount: 25000,
