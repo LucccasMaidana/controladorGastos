@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS public.bills (
     paid_cash_amount NUMERIC(12, 2) DEFAULT 0.00,
     paid_digital_amount NUMERIC(12, 2) DEFAULT 0.00,
     paid_by TEXT,
+    second_due_date DATE,
+    second_amount NUMERIC(12, 2),
     created_by TEXT DEFAULT 'Admin',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -72,6 +74,10 @@ DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bills' AND column_name='paid_by') THEN
         ALTER TABLE public.bills ADD COLUMN paid_by TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bills' AND column_name='second_due_date') THEN
+        ALTER TABLE public.bills ADD COLUMN second_due_date DATE;
+        ALTER TABLE public.bills ADD COLUMN second_amount NUMERIC(12, 2);
     END IF;
 END $$;
 

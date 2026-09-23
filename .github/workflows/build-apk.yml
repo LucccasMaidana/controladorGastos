@@ -1,0 +1,74 @@
+name: Compilar APK Android (Libreta Contable)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Compilar APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar Código del Repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Sincronizar Assets Web Actualizados a la App Android
+        run: |
+          mkdir -p android/app/src/main/assets/www
+          cp -r index.html manifest.json favicon.svg js styles assets android/app/src/main/assets/www/
+          echo "Assets web copiados exitosamente."
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Generar Wrapper y Compilar APK Debug
+        working-directory: android
+        run: |
+          gradle wrapper --gradle-version 8.5
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Renombrar APK para distribución
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist/LibretaContable-v1.0.apk
+
+      - name: Subir APK como Artefacto Descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: LibretaContable-Android-APK
+          path: dist/LibretaContable-v1.0.apk
+          retention-days: 30
+
+      - name: Publicar Release con APK en GitHub
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: v1.0.0
+          name: "Libreta Contable Familiar v1.0.0 (APK)"
+          body: |
+            ### 📱 Libreta Contable Familiar - Instalador Android (.apk)
+            
+            Descarga el archivo `LibretaContable-v1.0.apk` en tu celular Android e instálalo para tener la app completa en pantalla completa con soporte offline.
+            
+            - **Usuario familiar:** Mariel Vallejos / Lucas Maidana
+            - **Acceso secreto:** Escribe `Admin` y clave `JjunieBronce1`
+            - **Soporte Offline & Botón Atrás físico integrado.**
+          files: dist/LibretaContable-v1.0.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
