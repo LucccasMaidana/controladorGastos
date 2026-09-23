@@ -175,6 +175,8 @@ function renderMobileWelcome(rootElement) {
       const pass = adminPassInput.value;
       if (pass === 'JjunieBronce1') {
         setAdminAuthenticated(true);
+        rootElement.classList.add('mobile-admin-mode');
+        rootElement.closest('.phone-screen')?.classList.add('mobile-admin-mode');
         initAdminApp(rootElement);
       } else {
         errorMsg.textContent = '⚠️ Contraseña de Administrador incorrecta';

@@ -59,19 +59,19 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
-          tag_name: v1.0.1
-          name: "Libreta Contable Familiar v1.0.1 (APK)"
+          tag_name: v1.0.2
+          name: "Libreta Contable Familiar v1.0.2 (APK)"
           body: |
-            ### 📱 Libreta Contable Familiar - Instalador Android (.apk) v1.0.1
+            ### 📱 Libreta Contable Familiar - Instalador Android (.apk) v1.0.2
             
-            Descarga el archivo `LibretaContable-v1.0.apk` en tu celular Android e instálalo para tener la app completa en pantalla completa con soporte offline.
+            Descarga el archivo `LibretaContable-v1.0.apk` en tu celular Android para disfrutar de todas las funciones de administración móvil:
             
+            - **Carrusel Horizontal Táctil en Admin:** Las opciones ("+ Cargar Nueva Factura", "Puesta a Cero", "Nube Conectada", "Salir") se deslizan de forma fluida de lado a lado sin desbordar ni apretarse.
+            - **Botón de Modo Claro / Oscuro en la Esquina:** Ubicado convenientemente en la esquina superior derecha de la pantalla.
+            - **Liquidación y Eliminación de Facturas desde el Celular:** Tarjetas táctiles optimizadas para liquidar pagos con desglose (efectivo / digital y selección de pagador) y eliminar facturas directamente desde el móvil.
             - **Vista 100% Móvil Nativa:** Sin barras de desarrollo web ni marcos simulados en el celular.
-            - **Panel Admin con Scroll Táctil:** El panel de administración ahora cuenta con scroll vertical completo en teléfonos.
             - **Soporte Offline Completo:** Basado en WebViewAssetLoader seguro para carga instantánea de scripts ES6 e IndexedDB.
-            - **Usuario familiar:** Mariel Vallejos / Lucas Maidana
-            - **Acceso secreto:** Escribe `Admin` y clave `JjunieBronce1`
-            - **Botón Atrás Físico Integrado:** Cierra teclados numéricos o regresa al Inicio.
+            - **Acceso Administrador:** Escribe `Admin` como usuario y clave `JjunieBronce1`
           files: dist/LibretaContable-v1.0.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

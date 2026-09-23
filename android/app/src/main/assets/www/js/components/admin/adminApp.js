@@ -68,30 +68,33 @@ export async function renderAdminApp(rootElement) {
 
   rootElement.innerHTML = `
     <div class="admin-panel-container">
-      <!-- Encabezado del Panel PC -->
+      <!-- Botón de Modo Claro / Oscuro en la esquina de la pantalla -->
+      <button type="button" class="admin-corner-theme-btn" id="btn-theme-admin" title="Alternar modo claro / oscuro">
+        <span data-theme-icon>🌙</span>
+      </button>
+
+      <!-- Encabezado del Panel -->
       <div class="admin-header">
         <div class="admin-header-title">
           <h2>Panel Administrador de Servicios 💻</h2>
           <p>Supervisión familiar, gestión de facturas y liquidación de pagos</p>
         </div>
 
-        <div class="admin-header-actions">
-          <button type="button" class="btn-secondary" id="btn-theme-admin" title="Alternar modo claro / oscuro" style="padding: 0 12px;">
-            <span data-theme-icon>🌙</span>
-          </button>
-          <button type="button" class="btn-secondary" id="btn-wipe-production" title="Borrar datos de prueba para dejar la app limpia" style="color: #fb7185; border-color: rgba(251, 113, 133, 0.3);">
-            <span>🗑️</span>
-            <span>Puesta a Cero</span>
-          </button>
-          <button type="button" class="btn-secondary" id="btn-open-settings">
-            <span>⚙️</span>
-            <span>${isCloudConnected ? 'Nube Conectada' : 'Conectar Supabase'}</span>
-          </button>
-          <button type="button" class="btn-primary" id="btn-open-create-bill">
+        <!-- Carrusel Deslizable con Scroll Horizontal en Celular -->
+        <div class="admin-header-actions admin-actions-carousel">
+          <button type="button" class="btn-primary btn-carousel-item" id="btn-open-create-bill">
             <span>＋</span>
             <span>Cargar Nueva Factura</span>
           </button>
-          <button type="button" class="btn-secondary" id="btn-admin-logout" title="Cerrar sesión de Administrador" style="color: #fbbf24;">
+          <button type="button" class="btn-secondary btn-carousel-item" id="btn-wipe-production" title="Borrar datos de prueba para dejar la app limpia" style="color: #fb7185; border-color: rgba(251, 113, 133, 0.3);">
+            <span>🗑️</span>
+            <span>Puesta a Cero</span>
+          </button>
+          <button type="button" class="btn-secondary btn-carousel-item" id="btn-open-settings">
+            <span>⚙️</span>
+            <span>${isCloudConnected ? 'Nube Conectada' : 'Conectar Supabase'}</span>
+          </button>
+          <button type="button" class="btn-secondary btn-carousel-item" id="btn-admin-logout" title="Cerrar sesión de Administrador" style="color: #fbbf24;">
             <span>🔒</span>
             <span>Salir</span>
           </button>
@@ -139,32 +142,31 @@ export async function renderAdminApp(rootElement) {
 
         <div class="metric-card">
           <div class="metric-header">
-            <span class="metric-title">Facturas Pendientes Hogar</span>
+            <span class="metric-title">Deuda de Servicios (Hogar)</span>
             <span class="metric-badge">⚠️</span>
           </div>
-          <div class="metric-value warning">${formatCurrency(summary.totalPendingDebt)}</div>
-          <div class="metric-subtext">${summary.pendingBillsCount} boleta(s) por pagar</div>
+          <div class="metric-value debt">${formatCurrency(summary.totalPendingDebt)}</div>
+          <div class="metric-subtext">${summary.pendingBillsCount} facturas pendientes</div>
         </div>
 
-        <div class="metric-card">
+        <div class="metric-card highlight">
           <div class="metric-header">
             <span class="metric-title">Balance Real Neto (${summary.userName})</span>
-            <span class="metric-badge">📊</span>
+            <span class="metric-badge">⚖️</span>
           </div>
-          <div class="metric-value net">${formatCurrency(summary.realNetBalance)}</div>
-          <div class="metric-subtext">Disponible libre menos compromisos</div>
+          <div class="metric-value net">${formatCurrency(summary.netBalance)}</div>
+          <div class="metric-subtext">Dinero libre de deudas</div>
         </div>
       </div>
 
-      <!-- Controles de Tabla y Filtros -->
-      <div class="admin-table-controls">
-        <div style="font-size: 15px; font-weight: 700;">
-          Listado de Servicios y Facturas del Hogar
-        </div>
-
-        <div class="admin-filter-tabs">
+      <!-- Control de Pestañas de Filtro de Facturas -->
+      <div class="admin-tabs-header">
+        <h3 style="font-size: 16px; font-weight: 800;">
+          Gestión de Facturas del Hogar (${bills.length})
+        </h3>
+        <div class="admin-tabs-nav">
           <button type="button" class="admin-tab-btn ${activeFilter === 'PENDING' ? 'active' : ''}" id="filter-pending">
-            Pendientes (${summary.pendingBillsCount})
+            Pendientes
           </button>
           <button type="button" class="admin-tab-btn ${activeFilter === 'PAID' ? 'active' : ''}" id="filter-paid">
             Pagadas
@@ -175,7 +177,7 @@ export async function renderAdminApp(rootElement) {
         </div>
       </div>
 
-      <!-- Tabla de Facturas -->
+      <!-- Tabla de Facturas para Escritorio / PC -->
       <div class="admin-table-wrapper">
         <table class="admin-bills-table">
           <thead>
@@ -247,6 +249,65 @@ export async function renderAdminApp(rootElement) {
             }).join('')}
           </tbody>
         </table>
+      </div>
+
+      <!-- Tarjetas Táctiles de Facturas para Celular / Móvil -->
+      <div class="admin-mobile-cards-list">
+        ${bills.length === 0 ? `
+          <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px; background: var(--bg-input); border-radius: var(--radius-md);">
+            No hay facturas en esta sección. Puedes cargar una nueva con el botón "+ Cargar Nueva Factura".
+          </div>
+        ` : bills.map(bill => {
+          const isPending = bill.status === 'PENDING';
+          const brand = getServiceBrandStyle(bill.service_name);
+          return `
+            <div class="admin-mobile-bill-card" style="border-left: 5px solid ${brand.borderColor};">
+              <div class="admin-mobile-bill-top">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 22px;">${brand.icon}</span>
+                  <div>
+                    <h4 style="font-size: 15px; font-weight: 800; margin: 0; color: var(--text-main);">${bill.service_name}</h4>
+                    <span style="font-size: 11px; color: var(--text-muted);">1° Vto: ${formatDateSimple(bill.due_date)}</span>
+                  </div>
+                </div>
+                <span class="bill-status-badge ${isPending ? 'pending' : 'paid'}">
+                  ${isPending ? '⏳ Pendiente' : '✓ Pagada'}
+                </span>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0 4px 0;">
+                <div style="font-size: 20px; font-weight: 800; font-family: var(--font-mono); color: var(--text-main);">
+                  ${formatCurrency(bill.amount)}
+                </div>
+                ${bill.second_due_date ? `
+                  <div style="font-size: 11px; color: #f59e0b; font-weight: 700;">
+                    2° Vto: ${formatDateSimple(bill.second_due_date)} (${formatCurrency(bill.second_amount || bill.amount)})
+                  </div>
+                ` : ''}
+              </div>
+
+              ${!isPending ? `
+                <div style="font-size: 11px; color: var(--text-muted); background: rgba(0, 0, 0, 0.08); padding: 8px 10px; border-radius: var(--radius-sm); margin: 6px 0;">
+                  Cubierto por: <strong>${bill.paid_by || 'Usuario'}</strong><br/>
+                  💵 Efectivo: $${bill.paid_cash_amount || 0} / 💳 Digital: $${bill.paid_digital_amount || 0}
+                </div>
+              ` : ''}
+
+              <!-- Botones Táctiles de Acción en Celular -->
+              <div class="admin-mobile-bill-actions">
+                ${isPending ? `
+                  <button type="button" class="btn-settle-bill btn-mobile-settle" data-settle-id="${bill.id}">
+                    <span>✓</span>
+                    <span>Liquidar Pago</span>
+                  </button>
+                ` : ''}
+                <button type="button" class="btn-delete-bill btn-mobile-delete" data-delete-id="${bill.id}" title="Eliminar Factura">
+                  <span>✕ Eliminar</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('')}
       </div>
 
       <!-- Modales dinámicos (Cargar Factura, Liquidar, Supabase) -->
@@ -328,6 +389,7 @@ export async function renderAdminApp(rootElement) {
       const billId = e.currentTarget.dataset.deleteId;
       if (confirm('¿Estás seguro de que deseas eliminar este registro de factura?')) {
         await deleteBill(billId);
+        renderAdminApp(rootElement);
       }
     });
   });
@@ -335,7 +397,13 @@ export async function renderAdminApp(rootElement) {
   // Cerrar sesión
   document.getElementById('btn-admin-logout')?.addEventListener('click', () => {
     setAdminAuthenticated(false);
-    renderAdminApp(rootElement);
+    if (rootElement.id === 'mobile-app-root') {
+      rootElement.classList.remove('mobile-admin-mode');
+      rootElement.closest('.phone-screen')?.classList.remove('mobile-admin-mode');
+      window.location.reload();
+    } else {
+      renderAdminApp(rootElement);
+    }
   });
 }
 
@@ -527,6 +595,7 @@ function openCreateBillModal(rootElement) {
         createdBy: 'Admin'
       });
       closeModal();
+      renderAdminApp(rootElement);
     } catch (err) {
       alert(`Error al guardar factura: ${err.message}`);
     }
@@ -684,6 +753,7 @@ function openSettleBillModal(bill, rootElement, registeredUsers = []) {
         paidDigitalAmount: digitalVal
       });
       closeModal();
+      renderAdminApp(rootElement);
     } catch (err) {
       alert(`Error al liquidar: ${err.message}`);
     }
