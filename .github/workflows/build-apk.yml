@@ -23,8 +23,10 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Aceptar Licencias de Android SDK Preinstalado
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
 
       - name: Sincronizar Assets Web Actualizados a la App Android
         run: |
@@ -42,10 +44,11 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
-      - name: Renombrar APK para distribución
+      - name: Preparar APK para distribución
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/debug/app-debug.apk dist/LibretaContable-v1.0.apk
+          find android/app/build/outputs/apk/ -name "*.apk" -exec cp {} dist/LibretaContable-v1.0.apk \;
+          ls -la dist/
 
       - name: Subir APK como Artefacto Descargable
         uses: actions/upload-artifact@v4
