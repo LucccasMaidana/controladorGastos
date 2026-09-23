@@ -79,8 +79,10 @@ export async function renderAdminApp(rootElement) {
           <h2>Panel Administrador de Servicios 💻</h2>
           <p>Supervisión familiar, gestión de facturas y liquidación de pagos</p>
         </div>
+      </div>
 
-        <!-- Carrusel Deslizable con Scroll Horizontal en Celular -->
+      <!-- Carrusel Deslizable de Todo el Ancho (Edge-to-Edge) -->
+      <div class="admin-actions-carousel-container">
         <div class="admin-header-actions admin-actions-carousel">
           <button type="button" class="btn-primary btn-carousel-item" id="btn-open-create-bill">
             <span>＋</span>

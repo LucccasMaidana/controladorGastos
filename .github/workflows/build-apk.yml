@@ -59,19 +59,19 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
-          tag_name: v1.0.2
-          name: "Libreta Contable Familiar v1.0.2 (APK)"
+          tag_name: v1.0.3
+          name: "Libreta Contable Familiar v1.0.3 (APK)"
           body: |
-            ### 📱 Libreta Contable Familiar - Instalador Android (.apk) v1.0.2
+            ### 📱 Libreta Contable Familiar - Instalador Android (.apk) v1.0.3
             
-            Descarga el archivo `LibretaContable-v1.0.apk` en tu celular Android para disfrutar de todas las funciones de administración móvil:
+            Descarga el archivo `LibretaContable-v1.0.apk` en tu celular Android para disfrutar de todas las mejoras de navegación y administración móvil:
             
-            - **Carrusel Horizontal Táctil en Admin:** Las opciones ("+ Cargar Nueva Factura", "Puesta a Cero", "Nube Conectada", "Salir") se deslizan de forma fluida de lado a lado sin desbordar ni apretarse.
-            - **Botón de Modo Claro / Oscuro en la Esquina:** Ubicado convenientemente en la esquina superior derecha de la pantalla.
-            - **Liquidación y Eliminación de Facturas desde el Celular:** Tarjetas táctiles optimizadas para liquidar pagos con desglose (efectivo / digital y selección de pagador) y eliminar facturas directamente desde el móvil.
-            - **Vista 100% Móvil Nativa:** Sin barras de desarrollo web ni marcos simulados en el celular.
-            - **Soporte Offline Completo:** Basado en WebViewAssetLoader seguro para carga instantánea de scripts ES6 e IndexedDB.
-            - **Acceso Administrador:** Escribe `Admin` como usuario y clave `JjunieBronce1`
+            - **Carrusel Edge-to-Edge de Todo el Ancho:** Las opciones del Administrador se desplazan fluidamente a lo ancho de toda la pantalla de borde a borde sin ningún corte artificial ni encajonamiento.
+            - **Barra de Scroll 100% Oculta:** Navegación táctil limpia y moderna sin barras de desplazamiento visibles.
+            - **Botón de Modo Claro / Oscuro en la Esquina:** Ubicado de manera independiente y flotante en la esquina superior derecha.
+            - **Liquidación y Eliminación de Facturas desde el Celular:** Tarjetas táctiles completas con desglose (efectivo/digital) y eliminación con un solo toque.
+            - **Soporte Offline Completo:** Carga instantánea de IndexedDB y scripts ES6 mediante WebViewAssetLoader.
+            - **Acceso Administrador:** Usuario `Admin` con clave `JjunieBronce1`
           files: dist/LibretaContable-v1.0.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
