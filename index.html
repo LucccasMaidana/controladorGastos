@@ -15,6 +15,13 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#0f172a" />
   
+  <script>
+    // Detección inmediata para mostrar pantalla completa limpia en celulares y APK
+    if (window.innerWidth <= 820 || navigator.userAgent.includes('LibretaContableNative') || window.location.search.includes('mode=mobile') || window.location.search.includes('mariel')) {
+      document.documentElement.classList.add('is-mobile-device');
+    }
+  </script>
+  
   <!-- Tipografía moderna y de alto contraste (Google Fonts) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

@@ -335,7 +335,13 @@ export async function renderAdminApp(rootElement) {
   // Cerrar sesión
   document.getElementById('btn-admin-logout')?.addEventListener('click', () => {
     setAdminAuthenticated(false);
-    renderAdminApp(rootElement);
+    if (rootElement.id === 'mobile-app-root') {
+      rootElement.classList.remove('mobile-admin-mode');
+      rootElement.closest('.phone-screen')?.classList.remove('mobile-admin-mode');
+      window.location.reload();
+    } else {
+      renderAdminApp(rootElement);
+    }
   });
 }
 

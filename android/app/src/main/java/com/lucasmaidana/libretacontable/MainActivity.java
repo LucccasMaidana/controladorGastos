@@ -2,6 +2,7 @@ package com.lucasmaidana.libretacontable;
 
 import android.annotation.SuppressLint;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
@@ -9,12 +10,14 @@ import android.view.WindowManager;
 import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import androidx.webkit.WebViewAssetLoader;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -27,7 +30,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Configuración de la barra de estado y de navegación en modo oscuro corporativo
+        // Barra de estado y navegación en color corporativo oscuro
         Window window = getWindow();
         window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
@@ -36,27 +39,32 @@ public class MainActivity extends AppCompatActivity {
 
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         webView = findViewById(R.id.webView);
-
-        // Desactivar swipe pull down para evitar conflictos con scroll táctil
         swipeRefreshLayout.setEnabled(false);
 
-        // Configuración de WebSettings para alto rendimiento y soporte Offline
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
+        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setAllowUniversalAccessFromFileURLs(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         
-        // Identificador especial de aplicación nativa para app.js
+        // Identificador especial de aplicación nativa para activar modo standalone
         String defaultUserAgent = settings.getUserAgentString();
         settings.setUserAgentString(defaultUserAgent + " LibretaContableNative/1.0");
 
         // Aceleración de gráficos por hardware
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         webView.setBackgroundColor(Color.parseColor("#0f172a"));
+
+        // Servir assets locales bajo dominio virtual HTTPS seguro de Android
+        // Esto elimina cualquier problema de CORS y permite que los módulos ES6 (type="module") funcionen al 100%
+        final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
+                .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
+                .build();
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -67,12 +75,17 @@ public class MainActivity extends AppCompatActivity {
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                return assetLoader.shouldInterceptRequest(request.getUrl());
+            }
+
+            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 return false;
             }
         });
 
-        // Enlace del Botón "Atrás" de Android con el historial de navegación web
+        // Conectar el botón físico de Android al historial web
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -84,8 +97,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Cargar los archivos web locales embebidos
-        webView.loadUrl("file:///android_asset/www/index.html");
+        // Cargar directamente la versión móvil en HTTPS seguro local
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?mode=mobile");
     }
 
     @Override
