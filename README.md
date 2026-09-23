@@ -1,5 +1,8 @@
 # 📒 Controlador de Gastos y Libreta Contable Familiar
 
+## 📲 Descargar APK para Celular Android
+👉 **[Descargar LibretaContable.apk (Click para Descargar en el Celular)](https://github.com/LucccasMaidana/controladorGastos/raw/main/LibretaContable.apk)**
+
 Aplicación **Offline-First** diseñada para registrar cobros y gastos diarios (efectivo físico y dinero digital), combinada con un panel web para administrar y liquidar facturas de servicios del hogar.
 
 ---
