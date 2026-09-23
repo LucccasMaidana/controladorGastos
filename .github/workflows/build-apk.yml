@@ -37,12 +37,10 @@ jobs:
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Generar Wrapper y Compilar APK Debug
+      - name: Compilar APK Debug con Gradle
         working-directory: android
         run: |
-          gradle wrapper --gradle-version 8.5
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          gradle assembleDebug --stacktrace || (gradle wrapper --gradle-version 8.5 && chmod +x gradlew && ./gradlew assembleDebug --stacktrace)
 
       - name: Preparar APK para distribución
         run: |
